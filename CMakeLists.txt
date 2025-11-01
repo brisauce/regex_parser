@@ -7,7 +7,7 @@ LANGUAGES C
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_BUILD_TYPE Debug)
-add_executable(${PROJECT_NAME} main.c string_parse.c replace_word.c)
+add_executable(${PROJECT_NAME} main.c string_parse.c replace_word.c regexp.c)
 configure_file(${PROJECT_NAME}Config.h.in ${PROJECT_NAME}Config.h)
 
 list(APPEND MY_INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR})
