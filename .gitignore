@@ -1,0 +1,81 @@
+#   I simply copied this from the first result of the google search for 
+#   "C gitignore". Have now done the same for cmake.
+
+#   It seems like the purpose of files like these is to exclude files from the 
+#   git compilation that would be unusable or pointless on other machines, or 
+#   otherwise pointless to collect in between files.
+
+# Prerequisites
+*.d
+
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Linker output
+*.ilk
+*.map
+*.exp
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Kernel Module Compile Results
+*.mod*
+*.cmd
+.tmp_versions/
+modules.order
+Module.symvers
+Mkfile.old
+dkms.conf
+#   copied from google search for cmake gitignore
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+
+build/
+[Bb][Uu][Ii][Ll][Dd]/
+
+.ccls-cache/
+
+#   The next person who reads this won't need my compile commands 
+compile_commands.json
+vcpkg-configuration.json
+thinking.txt

@@ -1,0 +1,6 @@
+#define string_processor_VERSION_MAJOR ${string_processor_VERSION_MAJOR}
+#define string_processor_VERSION_MINOR ${string_processor_VERSION_MINOR}
+#define string_processor_VERSION_PATCH ${string_processor_VERSION_PATCH}
+
+
+#define PROJECT_NAME "${PROJECT_NAME}"
