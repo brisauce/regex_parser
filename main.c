@@ -7,9 +7,12 @@
  *  DONE
  *
  *  Can you implement some regular-expression-matching functions for strings? For example, 
- *  find a character class such as [A-Q], match with * (meaning "anything") or match with 
- *  ? (meaning "any character")
+ *  find a character class such as [A-Q], match with * (meaning "one or more occurances of 
+ *  the preceding character") or match with ? (meaning "zero or one occurance of the 
+ *  preceding character")
+ *
  *  OR
+ *
  *  Can you implement a regular-expression-matching function for POSIX character classes such 
  *  as [[:alpha:]], [[:digit:]] and so on? 
  *
@@ -31,6 +34,8 @@
 #include "CLI.h"
 #include "string_parse.h"
 #include "replace_word.h"
+#include "error_handling.h"
+#include "regexp.h"
 
 void printNChars(char * string, unsigned int n)
 {
@@ -42,10 +47,92 @@ void printNChars(char * string, unsigned int n)
   fflush(stdout);
 }
 
+void regexDetectTest(char * string)
+{
+  char * test_regex = string;
+
+  enum whichRegex result = regexpParse(test_regex);
+  
+  char * desc;
+  switch (result)
+  {
+    case ERROR:
+      desc = "ERROR";
+      break;
+    case CHAR_PATTERN:
+      desc = "CHAR_PATTERN";
+      break;
+    case MATCH_ONE_OR_MORE_CHARS:
+      desc = "MATCH_ONE_OR_MORE_CHARS";
+      break;
+    case MATCH_ZERO_OR_ONE_CHAR:
+      desc = "MATCH_ZERO_OR_ONE_CHAR";
+      break;
+    case ESCAPE_CHAR:
+      desc = "ESCAPE_CHAR";
+      break;
+    case MATCH_ONE_OR_MORE_CHARS_WITH_ESCAPE_CHAR:
+      desc = "MATCH_ONE_OR_MORE_CHARS_WITH_ESCAPE_CHAR";
+      break;
+    case MATCH_ZERO_OR_ONE_CHAR_WITH_ESCAPE_CHAR:
+      desc = "MATCH_ZERO_OR_ONE_CHAR_WITH_ESCAPE_CHAR";
+      break;
+    case NONE:
+      desc = "NONE";
+      break;
+  }
+
+  printf("Test regex: %s\n", test_regex);
+  puts(desc);
+
+  if (result == CHAR_PATTERN)
+  {
+    char A;
+    char Z;
+    parseCharPattern(test_regex, &A, &Z);
+    printf("Range pulled from passed char pattern: [%c-%c]\n", A, Z);
+  }
+
+  if (getCurrentErrorState() != NO_ERROR_STATE)
+  {
+    printErrorState("Error in parseCharPattern:");
+    return;
+  }
+}
+
+void displayNChars (char * string, unsigned int n)
+{
+  for (unsigned int i = 0; i < n; i++)
+  {
+    printf("%c%c", string[i], (i == n - 1) ? '\n' : '\0');
+  }
+}
+
+
 int main (int argc, char ** argv)
 {
-  //  regexp API sketch
-  //
-  //
+  if (argc != 3)
+  {
+    printf("Need 2 arguments: first, text to parse; Second, word to use to parse the text.\n");
+    printf("If either argument contains more than one word separated by a space, wrap that \
+argument in quotations.\n");
+    exit(EXIT_FAILURE);
+  }
 
+  char * start;
+  char * end;
+  if (findWordInStringRegex(argv[1], argv[2], &start, &end) == STRING_PARSE_FAIL)
+  {
+    printErrorState("Error in findWordInStringRegex:");
+    return EXIT_FAILURE;
+  }
+
+  if (start && end)
+  {
+    displayNChars(start, end - start);
+  }
+  else 
+  {
+    printf("Failure in text parse!\n");
+  }
 }

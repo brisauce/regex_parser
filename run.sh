@@ -4,7 +4,7 @@ PROGRAM_NAME="string_processor"
 
 
 run_program () {
-  ./$PROGRAM_NAME "test test testy test"
+  ./$PROGRAM_NAME "Run, run, as fast as you can! You can't catch me, I'm the gingerbread man!" f[a-d]st 
 }
 
 if [ ! -d build ]; then
