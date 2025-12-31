@@ -17,7 +17,8 @@
  *  as [[:alpha:]], [[:digit:]] and so on? 
  *
  *  Can you stitch all of these functionalities together to search for a regular expression 
- *  in a string?
+ *  in a string? 
+ *  DONE
  *
  *  Do query-replace with regexp against a specific word?
  *
@@ -36,6 +37,13 @@
 #include "replace_word.h"
 #include "error_handling.h"
 #include "regexp.h"
+#include "dynamic_array.h"
+
+typedef struct {
+  char * start;
+  char * end;
+} word_loc;
+
 
 void printNChars(char * string, unsigned int n)
 {
@@ -108,6 +116,7 @@ void displayNChars (char * string, unsigned int n)
   }
 }
 
+#define ARRAY_ELEMENTS 10
 
 int main (int argc, char ** argv)
 {
@@ -121,18 +130,46 @@ argument in quotations.\n");
 
   char * start;
   char * end;
-  if (findWordInStringRegex(argv[1], argv[2], &start, &end) == STRING_PARSE_FAIL)
+
+  char * string = argv[1];
+
+  if (!dynArrayInit(ARRAY_ELEMENTS, sizeof(word_loc)))
   {
-    printErrorState("Error in findWordInStringRegex:");
+    printf("Failed to initialize dynamic array! Exiting\n");
     return EXIT_FAILURE;
   }
 
-  if (start && end)
+  do {
+
+    if (findWordInStringRegex(string, argv[2], &start, &end) == STRING_PARSE_FAIL)
+    {
+      printErrorState("Error in findWordInStringRegex:");
+      return EXIT_FAILURE;
+    }
+
+    word_loc temp;
+    temp.start = start;
+    temp.end = end;
+
+    if (start && end)
+    {
+      if (!dynArrayAdd(&temp))
+      {
+        printf("Failed to append an item to dynamic array! Exiting\n");
+        return EXIT_FAILURE;
+      }
+    }
+
+    string = end + 1;
+
+  } while (start && end);
+
+  word_loc * read;
+
+  while (read = (word_loc *) dynArrayRead(NULL))
   {
-    displayNChars(start, end - start);
+    displayNChars(read->start, read->end - read->start);
   }
-  else 
-  {
-    printf("Failure in text parse!\n");
-  }
+
+  dynArrayDestroy();
 }

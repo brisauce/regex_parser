@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.22.1)
 
 project(string_processor 
-VERSION 0.2.0 
+VERSION 0.3.0 
 LANGUAGES C
 )
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_BUILD_TYPE Debug)
-add_executable(${PROJECT_NAME} main.c string_parse.c replace_word.c regexp.c error_handling.c)
+add_executable(${PROJECT_NAME} main.c string_parse.c replace_word.c regexp.c error_handling.c dynamic_array.c)
 configure_file(${PROJECT_NAME}Config.h.in ${PROJECT_NAME}Config.h)
 
 list(APPEND MY_INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR})
