@@ -1,6 +1,10 @@
 #ifndef CLI_H
 #define CLI_H
 
-void parseCLI(int argc, char ** argv);
+#include <stdlib.h>
+
+#include "arena.h"
+
+arena * parseCLI(int argc, char ** argv) __attribute_warn_unused_result__;
 
 #endif

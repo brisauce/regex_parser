@@ -2,6 +2,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "dynamic_array.h"
+
 /*  
  *  This implementation of a dynamic array works by tracking both a read and write pointer 
  *  which are used to index an array which can be dynamically resized.
@@ -15,7 +17,13 @@
  */
 
 size_t unit_size = 0;
+
+//  The next element in the array to write data to. The index this points to will never contain 
+//  data.
 unsigned int w_pointer = 0;
+
+//  The index in the array which will return data when dynArrayRead is called. This will never 
+//  be greater than w_pointer, and will always point to valid data.
 unsigned int r_pointer = 0;
 size_t arr_size = 0;
 void * array = NULL;
@@ -56,10 +64,9 @@ bool dynArrayAdd (void * item)
 
 void * dynArrayRead (size_t * element_size)
 {
-  //  returns a pointer to the first byte of the item the current read pointer points to.
+  //  Returns a pointer to the first byte of the item the current read pointer points to.
   //  Will return by reference the size of the item in bytes if a pointer to a size_t 
   //  object is passed to the function, otherwise NULL should be passed.
-  //
   
 
   if (r_pointer >= w_pointer)
@@ -85,4 +92,44 @@ void * dynArrayRead (size_t * element_size)
 void dynArrayDestroy(void)
 {
   free(array);
+}
+
+unsigned int dynArrayGetIndex (void)
+{
+  //  Returns the current index of the auto-iterating dynamic array.
+  return r_pointer;
+}
+
+unsigned int dynArrayGetArraySize (void)
+{
+  //  Returns the size of the array. Indexing this element in the array will not return data.
+  return w_pointer;
+}
+
+void * dynArrayGetData (unsigned int index)
+{
+  //  An index into the dynamic array is passed. If the index is a valid readable index,
+  //  a pointer to the data is returned. If not, NULL is returned.
+
+  if (index >= w_pointer)
+  {
+    return NULL;
+  }
+
+  return array + (index * unit_size);
+}
+
+unsigned int dynArrayMoveToIndex(unsigned int index)
+{
+  //  Moves the read pointer to some element containing data in the array.
+  //  If this element doesn't contain data or is otherwise inaccessable, return an error state.
+  
+  if (index >= w_pointer)
+  {
+    return DAMOVE_FAIL; 
+  }
+
+  r_pointer = index;
+
+  return DAMOVE_SUCCEED;
 }

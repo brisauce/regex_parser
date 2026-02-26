@@ -2,10 +2,13 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <limits.h>
 
+#include "arena.h"
 #include "string_parse.h"
 #include "regexp.h"
 #include "error_handling.h"
+#include "word_loc_struct.h"
 
 char * findWordInString(char * string, char * word)
 {
@@ -23,7 +26,8 @@ char * findWordInString(char * string, char * word)
   return NULL;
 }
 
-int findWordInStringRegex(char * string, char * word, char ** start, char ** end)
+
+int findWordInStringRegex(arena * a, word_loc * loc)
 {
   /*
    *  Parses a string for a char sequence which matches a regex containing word.
@@ -33,18 +37,23 @@ int findWordInStringRegex(char * string, char * word, char ** start, char ** end
    *
    *  Otherwise, returns a positive number.
    */
+  long file_start_pos = ftell(a->fp);
+  char first_char = fgetc(a->fp);
 
-  if (*string == '*')
+  if (first_char == '*')
   {
     setErrorState(MATCH_ANY_NUM_MISSING_ARG);
     return STRING_PARSE_FAIL;
   }
 
-  if (*string == '?')
+  if (first_char == '?')
   {
     setErrorState(MATCH_ONE_CHAR_MISSING_ARG);
     return STRING_PARSE_FAIL;
   }
+
+  //  move the file position indicator back to where it was when the function was called
+  fseek(a->fp, file_start_pos, SEEK_SET);
 
   //  Optimization- allows the regex parse function to only run when the word pointer changes
   char * current_word_index = NULL;
@@ -52,80 +61,94 @@ int findWordInStringRegex(char * string, char * word, char ** start, char ** end
   //  The state of which regex is currently being looked at in the word
   enum whichRegex state;
 
-  //  Remembers where the start of the word is so it can be returned to upon a mismatch
-  const char * word_start = word;
+  //  Remembers where the current word index is
+  char * word_ptr = a->word;
 
-  //  Tracks the location of the identified word and returns its location to the user 
-  char * word_start_in_string = NULL;
-  char * word_end_in_string = NULL;
+  //  Tracks the location of the identified word and returns its location to the user.
+  //  Data is formatted as the file position indicator returned by ftell()
+  long word_start_in_string = NOT_FOUND;
+  long word_end_in_string = NOT_FOUND;
 
-  for (; *string && *word; string++)
+  while (!feof(a->fp) && *word_ptr)
   {
 
-    //  Step through the string, searching for the word. 
+    //  Step through the file, searching for the word. 
     //  Once the first character in the word is detected, start moving through the word, checking 
-    //  character by character. The word pointer will only be advanced if there is a match.
+    //  matches character by character. The word pointer will only be advanced if there is a match.
     //
     //  If any letter past the first letter does not match, stop parsing the word and move the pointer 
     //  for the word back to the start of the word. Start searching for the first letter in the word again. 
     //
-    //  if the regex word is formatted incorrectly, return.
+    //  if the regex word is formatted incorrectly, return indicating an error.
     //
-    //  Do this until either the end of the string or the word is reached.
+    //  Do this until either the end of the file or the word is reached.
 
-    if (current_word_index != word)
+    if (current_word_index != word_ptr)
     {
-      //  This prevents the program from needing to check the word for every iteration of the loop
-      state = regexpParse(word);
-      current_word_index = word;
+      //  Optimization - This prevents the program from needing 
+      //  to check the word for every iteration of the loop
+      state = regexpParse(word_ptr);
+      current_word_index = word_ptr;
     }
+
+    //  A note on why 
+    //
+    //  ftell(a->fp) - 1l 
+    //
+    //  Appears in the code. 
+    //
+    //  fgetc, which is the function used to grab a single character from the file, also 
+    //  advances the position indicator by one character width in the file. This makes ftell(),
+    //  which returns the location of the position indicator in the file,
+    //  point to the character *following* the character which I want to know the position of.
+    //  Useful for conciseness, but not so much for my specific purposes
 
     switch (state) 
     {
     case NONE:
-      if (*string == *word)
+      if (fgetc(a->fp) == *word_ptr)
       {
-        if (word == word_start)
+        if (word_ptr == a->word)
         {
-          word_start_in_string = string;
+          word_start_in_string = ftell(a->fp) - 1l;
         }
-        word++;
+        word_ptr++;
       }
-      else if (word == word_start)
+      else if (word_ptr == a->word)
       {
         break;
       }
       else 
       {
-        word = (char *) word_start;
+        word_ptr = a->word;
       }
       break;
     case CHAR_PATTERN:
     {
       char A;
       char Z;
-      word = parseCharPattern(word, &A, &Z);
+      word_ptr = parseCharPattern(word_ptr, &A, &Z);
       if (!A || !Z)
       {
         //  Error in parsing or invalid char class
         return STRING_PARSE_FAIL;
       }
 
-      if (!isInCharClass(string, A, Z))
+      if (!isInCharClass(fgetc(a->fp), A, Z))
       {
         //  String doesn't match word, start looking for the word again from the start
-        word = (char *) word_start;
+        word_ptr = a->word;
       }
       else 
       {
-        if (word == word_start)
+        if (word_ptr == a->word)
         {
-          word_start_in_string = string;
+          word_start_in_string = ftell(a->fp) - 1l;
         }
 
         //  parseCharPattern will have advanced the word pointer up to the ']' part in the char 
         //  pattern regexp, this will move it past that so we are completely past it
-        word ++;
+        word_ptr ++;
       }
       break;
     }
@@ -134,22 +157,21 @@ int findWordInStringRegex(char * string, char * word, char ** start, char ** end
       //  The first two chars in the word will be the argument, i.e. what character we are looking for,
       //  followed by the regex character.
 
-      char * start = string;
-      for(; *string && *string == *word; string++){}
+      long start = ftell(a->fp);
+      while(!feof(a->fp) && fgetc(a->fp) == *word_ptr){}
 
-      if (string == start)
+      if (ftell(a->fp) - 1l == start)
       {
-        word = (char *) word_start;
+        word_ptr = a->word;
       }
       else 
       {
-        if (word == word_start)
+        if (word_ptr == a->word)
         {
-          word_start_in_string = string;
+          word_start_in_string = ftell(a->fp) - 1;
         }
 
-
-        word += 2;
+        word_ptr += 2;
       }
 
       break;
@@ -157,19 +179,16 @@ int findWordInStringRegex(char * string, char * word, char ** start, char ** end
     case MATCH_ZERO_OR_ONE_CHAR:
       //  The first two chars in the word will be the argument followed by the regex character
 
-      if (*word != *string)
+      if (*word_ptr != fgetc(a->fp))
       {
-        //  if the character we are looking for is not present, this still satisfies the regex,
-        //  but since the main loop will advance the string pointer and it may contain data we 
-        //  need to match, we decrement it so the string pointer ends up where it belongs
-        string --;
+        fseek(a->fp, -1, SEEK_CUR);
       }
-      else if (word == word_start)
+      else if (word_ptr == a->word)
       {
-        word_start_in_string = string;
+        word_start_in_string = ftell(a->fp) - 1l;
       }
 
-      word += 2;
+      word_ptr += 2;
       break;
     case MATCH_ONE_OR_MORE_CHARS_WITH_ESCAPE_CHAR:
     {
@@ -177,52 +196,52 @@ int findWordInStringRegex(char * string, char * word, char ** start, char ** end
       //  the slash indicating an escape character, the second is the character we are looking 
       //  for, and the third is the regex character.
 
-      char * start = string;
-      for(; *string && *string == word[1]; string++){}
+      long start = ftell(a->fp);
+      while ( !feof(a->fp) && fgetc(a->fp) == word_ptr[1]){}
 
-      if (string == start)
+      if (ftell(a->fp) - 1l == start)
       {
-        word = (char *) word_start;
+        word_ptr = a->word;
       }
       else 
       {
-        if (word == word_start)
+        if (word_ptr == a->word)
         {
-          word_start_in_string = string;
+          word_start_in_string = ftell(a->fp) - 1l;
         }
 
-        word += 3;
+        word_ptr += 3;
       }
 
       break;
     }
     case MATCH_ZERO_OR_ONE_CHAR_WITH_ESCAPE_CHAR:
 
-      if (*string != word[1])
+      if (fgetc(a->fp) != word_ptr[1])
       {
-        string --;
+        fseek(a->fp, -1, SEEK_CUR);
       }
-      else if (word == word_start)
+      else if (word_ptr == a->word)
       {
-        word_start_in_string = string;
+        word_start_in_string = ftell(a->fp) - 1l;
       }
 
-      word += 3;
+      word_ptr += 3;
 
       break;
     case ESCAPE_CHAR:
 
-      if (*string != word[1])
+      if (fgetc(a->fp) != word_ptr[1])
       {
-        word = (char *) word_start;
+        word_ptr = a->word;
       }
-      else if (word == word_start)
+      else if (word_ptr == a->word)
       {
-        word_start_in_string = string;
+        word_start_in_string = ftell(a->fp) - 1l;
       }
       else 
       {
-        word += 3;
+        word_ptr += 3;
       }
 
       break;
@@ -231,13 +250,14 @@ int findWordInStringRegex(char * string, char * word, char ** start, char ** end
     }
   }
 
-  if (word_start + strlen(word_start) == word)
+  if (a->word + strlen(a->word) == word_ptr)
   {
-    word_end_in_string = string;
+    //  Reached the end of the regex word, meaning there was a complete match.
+    word_end_in_string = ftell(a->fp) - 1l;
   }
 
-  *start = word_start_in_string;
-  *end = word_end_in_string;
+  loc->word_start_pos = word_start_in_string;
+  loc->word_end_pos = word_end_in_string;
 
 
   return STRING_PARSE_SUCCESS;

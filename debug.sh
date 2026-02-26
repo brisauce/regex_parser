@@ -1,16 +1,27 @@
 #!/usr/bin/sh
-PROGRAM_NAME="string_processor"
+program_name="string_processor"
+test_file_name="test_file.txt"
+
+test_word="test"
+text_file_contents=$(cat << EOF
+testing testing one two three
+testing testing you and me
+hee hee
+EOF
+)
+test_word_replacement="kalamazoo"
 
 
 run_gdbgui() {
-  gdbgui -g "gdb --q" --args ./$PROGRAM_NAME \"Run, run, as fast as you can! You can't catch me, I'm the gingerbread man!\" f[a-d]st 
+  gdbgui -g "gdb --q" --args ./"$program_name" "$test_word" "$test_file_name" "$test_word_replacement"
 }
 
 
 cd build
 
-if [ -e $PROGRAM_NAME ]; then
+if [ -e $program_name ]; then
+  printf "%s\n" "$text_file_contents" > "$test_file_name"
   run_gdbgui
 else
-  echo "$PROGRAM_NAME not found. please run configure.sh then build.sh"
+  echo "$program_name not found. please run configure.sh then build.sh"
 fi

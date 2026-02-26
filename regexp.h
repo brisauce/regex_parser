@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdio.h>
 enum whichRegex {
   ERROR = 0,
   CHAR_PATTERN,
@@ -14,7 +15,7 @@ enum whichRegex {
   NONE,
 };
 
-bool isInCharClass(char * string, char A, char Z);
+bool isInCharClass(char c, char A, char Z);
 
 char * parseCharPattern(char * string, char * A, char * Z) __attribute_warn_unused_result__;
 

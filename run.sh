@@ -1,10 +1,22 @@
 #! /usr/bin/sh
 
-PROGRAM_NAME="string_processor"
+program_name="string_processor"
 
+test_file_name="test_file.txt"
+
+test_word="test"
+
+text_file_contents=$(cat << EOF
+testing testing one two three
+testing testing you and me
+hee hee
+EOF
+)
+
+test_word_replacement="kalamazoo"
 
 run_program () {
-  ./$PROGRAM_NAME "Run, run, as fast as you can! You can't catch me, I'm the gingerbread man!" f[a-d]st 
+  ./$program_name "$test_word" "$test_file_name" "$test_word_replacement"
 }
 
 if [ ! -d build ]; then
@@ -14,8 +26,14 @@ fi
 
 cd build
 
-if [ -e $PROGRAM_NAME ]; then
+if [ -e $program_name ]; then
+  printf "%s\n" "$text_file_contents" > "$test_file_name"
+
+  echo "Contents of $test_file_name before query-replace:"
+  cat $test_file_name
   run_program
+  echo "Contents of $test_file_name after query-replace:"
+  cat $test_file_name
 else
-  echo "$PROGRAM_NAME not found. Please run build.sh."
+  echo "$program_name not found. Please run build.sh."
 fi

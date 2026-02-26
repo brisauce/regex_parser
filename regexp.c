@@ -6,11 +6,10 @@
 #include "string_parse.h"
 #include "regexp.h"
 
-bool isInCharClass(char * string, char A, char Z)
+bool isInCharClass(char c, char A, char Z)
 {
   //  determine if the character pointed to is within a certain pattern, and return true if it is
-
-  return *string >= A && *string <= Z;
+  return c >= A && c <= Z;
 }
 
 bool validEscChar (char * string)
@@ -21,6 +20,8 @@ bool validEscChar (char * string)
     case '*':
     case '?':
     case '[':
+    case '-':
+    case ']':
       return true;
     default:
       setErrorState(INVALID_ESCAPE_CHAR);

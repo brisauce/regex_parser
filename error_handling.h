@@ -9,6 +9,11 @@ enum error_state {
   INVALID_CHAR_CLASS,
   MATCH_ANY_NUM_MISSING_ARG,
   MATCH_ONE_CHAR_MISSING_ARG,
+
+  //  system errors
+  FAILED_MEMORY_ALLOC,
+  FAILED_FILE_OPEN,
+  FAILED_FILE_WRITE
 };
 
 void setErrorState(enum error_state state);
