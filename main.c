@@ -20,7 +20,7 @@
  *  in a string? 
  *  DONE
  *
- *  Do query-replace with regexp against a specific word?
+ *  Do query-replace with regexp against a specific word? DONE
  *
  *  Extend a regexp with grouping?
  *
@@ -96,33 +96,8 @@ void regexDetectTest(char * string)
   }
 }
 
-void copyFileTest (arena * a)
+void findWords(arena * a)
 {
-  // copy the entire file to the end of the original file
-
-  char * temp_file_name = "temp";
-  FILE * temp_file = fopen(temp_file_name, "r+");
-}
-
-int main (int argc, char ** argv)
-{
-
-  arena * a = parseCLI(argc, argv);
-  /**/
-  /*copyFileTest(a);*/
-  /**/
-  /*arenaDestroy(a);*/
-  /**/
-  /*return */
-  /**/
-  //  Dynamic array to hold pointers to the first and last character pointers of every word 
-
-  if (!dynArrayInit(ARRAY_ELEMENTS, sizeof(word_loc)))
-  {
-    printf("Failed to initialize dynamic array! Exiting\n");
-    arenaDestroy(a);
-    return EXIT_FAILURE;
-  }
 
   word_loc loc;
 
@@ -132,17 +107,16 @@ int main (int argc, char ** argv)
     if (findWordInStringRegex(a, &loc) == STRING_PARSE_FAIL)
     {
       printErrorState("Error in findWordInStringRegex:");
-      return EXIT_FAILURE;
+      return;
     }
 
     if (loc.word_start_pos != NOT_FOUND && loc.word_end_pos != NOT_FOUND)
     {
       if (!dynArrayAdd(&loc))
       {
-        printf("Failed to append an item to dynamic array! Exiting\n");
-        dynArrayDestroy();
-        arenaDestroy(a);
-        return EXIT_FAILURE;
+        setErrorState(DYNAMIC_ARRAY_ADD_FAIL);
+        printErrorState("Error:");
+        return;
       }
     }
     else 
@@ -154,75 +128,107 @@ int main (int argc, char ** argv)
     fseek(a->fp, loc.word_end_pos + sizeof(char), SEEK_SET);
 
   } 
+}
 
+void printFoundWords (arena * a)
+{
   word_loc * read;
+
+  while ( (read = (word_loc *) dynArrayRead(NULL)) )
+  {
+    fseek(a->fp, read->word_start_pos, SEEK_SET);
+
+    //  If the position pointer is one beyond the index where the word ends, the word 
+    //  has been read out.
+    while (ftell(a->fp) != read->word_end_pos + sizeof(char))
+    {
+      putchar(fgetc(a->fp));
+    }
+
+    putchar('\n');
+  }
+}
+
+void replaceWords (arena * a)
+{
+  word_loc * read;
+
+  long word_size_diff;
+  long old_word_size = strlen(a->word);
+  long new_word_size = strlen(a->new_word);
+
+  if (old_word_size < new_word_size)
+  {
+    word_size_diff = new_word_size - old_word_size;
+  }
+  else
+  {
+    word_size_diff = old_word_size - new_word_size;
+  }
+
+  while ( (read = (word_loc *) dynArrayRead(NULL)) )
+  {
+    replaceWordinFile(a, *read);
+
+    if (!word_size_diff)
+    {
+      continue;
+    }
+
+    unsigned int read_pos = dynArrayGetIndex();
+    unsigned int array_size = dynArrayGetArraySize();
+
+
+    for (unsigned int i = read_pos; i < array_size; i++)
+    {
+      word_loc * indexed_loc = dynArrayGetData(i);
+
+      if (!indexed_loc)
+      {
+        printf("Failed to return data from dynamic array index %d! Exiting\n", i);
+        return;
+      }
+
+      indexed_loc->word_end_pos += word_size_diff;
+      indexed_loc->word_start_pos += word_size_diff;
+
+    }
+  }
+}
+
+int main (int argc, char ** argv)
+{
+
+  arena * a = parseCLI(argc, argv);
+
+  //  Dynamic array to hold pointers to the first and last character pointers of every word 
+
+  if (!dynArrayInit(ARRAY_ELEMENTS, sizeof(word_loc)))
+  {
+    printf("Failed to initialize dynamic array! Exiting\n");
+    arenaDestroy(a);
+    return EXIT_FAILURE;
+  }
+
+  findWords(a);
+
+  if (getCurrentErrorState() != NO_ERROR_STATE)
+  {
+    return EXIT_FAILURE;
+  }
+
 
   if (!a->new_word)
   {
     //  In the case where the user just wants to find the location of the words queried
 
-    while ( (read = (word_loc *) dynArrayRead(NULL)) )
-    {
-      fseek(a->fp, read->word_start_pos, SEEK_SET);
-
-      //  If the position pointer is one beyond the index where the word ends, the word 
-      //  has been read out.
-      while (ftell(a->fp) != read->word_end_pos + sizeof(char))
-      {
-        putchar(fgetc(a->fp));
-      }
-
-      putchar('\n');
-    }
+    printFoundWords(a);
   }
   else 
   {
     //  query-replace
 
-    long word_size_diff;
-    long old_word_size = strlen(a->word);
-    long new_word_size = strlen(a->new_word);
-
-    if (old_word_size < new_word_size)
-    {
-      word_size_diff = new_word_size - old_word_size;
-    }
-    else
-    {
-      word_size_diff = old_word_size - new_word_size;
-    }
-
-    while ( (read = (word_loc *) dynArrayRead(NULL)) )
-    {
-      replaceWordinFile(a, *read);
-
-      if (!word_size_diff)
-      {
-        continue;
-      }
-
-      unsigned int read_pos = dynArrayGetIndex();
-      unsigned int array_size = dynArrayGetArraySize();
-
-
-      for (unsigned int i = read_pos; i < array_size; i++)
-      {
-        word_loc * indexed_loc = dynArrayGetData(i);
-
-        if (!indexed_loc)
-        {
-          printf("Failed to return data from dynamic array index %d! Exiting\n", i);
-          arenaDestroy(a);
-          dynArrayDestroy();
-          return EXIT_FAILURE;
-        }
-
-        indexed_loc->word_end_pos += word_size_diff;
-        indexed_loc->word_start_pos += word_size_diff;
-
-      }
-
-    }
+    replaceWords(a);
   }
 
   dynArrayDestroy();

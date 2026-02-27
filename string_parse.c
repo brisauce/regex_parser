@@ -263,26 +263,3 @@ int findWordInStringRegex(arena * a, word_loc * loc)
   return STRING_PARSE_SUCCESS;
 }
 
-
-/*char * findWord (char * string, char * word)*/
-/*{*/
-/*  enum whichRegex whichregex;*/
-/*  char * tempWord = word;*/
-/*  for (; *tempWord; tempWord++)*/
-/*  {*/
-/*    whichregex = regexpParse(tempWord);*/
-/*    if (whichregex != NONE && whichregex != ERROR)*/
-/*    {*/
-/*      break;*/
-/*    }*/
-/*  }*/
-/**/
-/*  if (whichregex == NONE || whichregex == ERROR)*/
-/*  {*/
-/*    return findWord(string, word);*/
-/*  }*/
-/*  else */
-/*  {*/
-/*    return findWordInStringRegex(string, word);*/
-/*  }*/
-/*}*/

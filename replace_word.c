@@ -45,57 +45,6 @@ int copyFile(FILE * src, long src_ptr, FILE * dest, long dest_ptr)
   return COPYFILE_SUCCESS;
 }
 
-void printCurrentFPPos(FILE * fp)
-{
-  //  Print 4 chars before and 5 chars after where the current position indicator is in the file
-  putchar('\n');
-  long cur_pos = ftell(fp);
-
-  if (cur_pos < 4)
-  {
-    fseek(fp, 0, SEEK_SET);
-    for (long i = 0; i < cur_pos + 5l; i++)
-    {
-      char c = fgetc(fp); 
-
-      if (c == EOF)
-      {
-        break;
-      }
-
-      putchar(c);
-    }
-    putchar('\n');
-
-    for (long i = 0; i < cur_pos; i++)
-    {
-      putchar(' ');
-    }
-    puts("^");
-  }
-  else
-  {
-    fseek(fp, -4, SEEK_CUR);
-
-    for (long i = 0; i < 10l; i++)
-    {
-      char c = fgetc(fp); 
-
-      if (c == EOF)
-      {
-        break;
-      }
-
-      putchar(c);
-    }
-    putchar('\n');
-
-    puts("    ^");
-  }
-
-  fseek(fp, cur_pos, SEEK_SET);
-}
-
 int replaceWordinFile(arena * a, word_loc loc)
 {
   //  Go to the point in the file where the end of the old word is located, copy the old file contents 
@@ -121,10 +70,6 @@ int replaceWordinFile(arena * a, word_loc loc)
     return REPLACE_WORD_ERROR;
   }
 
-  /*printf("fp position after copying original file to temp file:\n");*/
-  /**/
-  /*printCurrentFPPos(a->fp);*/
-  /*printCurrentFPPos(temp_file);*/
 
   //  Go to where the original word started and write the new word in. The position 
   //  indicator for a->fp should be at the end of the new word now and we can overwrite 
@@ -139,10 +84,6 @@ int replaceWordinFile(arena * a, word_loc loc)
 
   fflush(a->fp);
 
-  /*printf("fp positions after new word is written to file:");*/
-  /*printCurrentFPPos(a->fp);*/
-  /*printCurrentFPPos(temp_file);*/
-
   //  Go to the start of the temp file so we can rewrite everything back to the 
   //  original file.
   fseek(a->fp, loc.word_start_pos + strlen(a->new_word), SEEK_SET);
@@ -153,47 +94,10 @@ int replaceWordinFile(arena * a, word_loc loc)
     return REPLACE_WORD_ERROR;
   }
 
-  /*printf("fp positions after temp file is copied into new file:");*/
-  /**/
-  /*printCurrentFPPos(a->fp);*/
-  /*printCurrentFPPos(temp_file);*/
-
 
   fclose(temp_file);
   remove(temp_file_name);
 
   return REPLACE_WORD_SUCCESS;
-}
-
-char * replaceWordOBSOLETE(char * string, unsigned long str_total_space, char * old_word, char * new_word)
-{
-  //  replaces a word in a string. returns NULL if it fails
-
-  char * old_word_loc = findWordInString(string, old_word);
-
-  if (!old_word_loc)
-  {
-    return NULL;
-  }
-
-  unsigned long str_len = strlen(string);
-  unsigned long old_word_len = strlen(old_word);
-  unsigned long new_word_len = strlen(new_word); 
-  unsigned long new_len = str_len - old_word_len + new_word_len;
-
-  if (new_len > str_total_space)
-  {
-    return NULL;
-  }
-
-  char * str_buf = calloc(str_total_space, sizeof(char));
-  
-  strcpy(str_buf, old_word_loc + old_word_len);
-  strcpy(old_word_loc, new_word);
-  strcpy(old_word_loc + new_word_len, str_buf);
-  
-  free(str_buf);
-
-  return string;
 }
 

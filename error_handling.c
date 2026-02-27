@@ -6,6 +6,25 @@
 #include "error_handling.h"
 enum error_state error_state = NO_ERROR_STATE;
 
+//  This array should have a number of elements equal to the last defined enum for enum error_state,
+//  plus one, because enum error state starts counting from zero.
+char * error_msg[FAILED_FILE_WRITE + 1] = {
+  "No error state.",
+  "Invalid escape character.",
+  "Expected closing brace in character class",
+  "Word not found.",
+  "Invalid character class.",
+  "Missing argument in \"Match one or more chars\" regex.",
+  "Missing argument in \"Match zero or one char\" regex.",
+
+  "Failed to add data to dynamic array.",
+
+  "Failed to allocate memory.",
+  "Failed to open file.",
+  "Failed to write to file."
+
+};
+
 void setErrorState(enum error_state state)
 {
   error_state = state;
@@ -18,46 +37,26 @@ enum error_state getCurrentErrorState(void)
 
 void printErrorState(char * errmsg)
 { 
-  //  pass a string to be concatenated with a description of the error state 
-  //  which is then printed
+  //  Pass a string to be concatenated with a description of the error state 
+  //  which is then printed.
+  //
+  //  If no string (NULL) is passed, then the error message for the current error state is printed
+  //  by itself.
+
+  char * desc = error_msg[error_state];
+
+  if (!errmsg)
+  {
+    puts(desc);
+    return;
+  }
 
   unsigned long errmsg_len = strlen(errmsg);
-  
-  char * desc;
-
-  switch (error_state)
-  {
-  case NO_ERROR_STATE:
-    desc = "No error state.";
-    break;
-  case INVALID_ESCAPE_CHAR:
-    desc = "Invalid escape character.";
-    break;
-  case EXPECTED_CLOSING_BRACE:
-    desc = "Expected closing brace.";
-    break;
-  case WORD_NOT_FOUND:
-    desc = "Word not found.";
-    break;
-  case INVALID_CHAR_CLASS:
-    desc = "Invalid character class.";
-    break;
-  case MATCH_ANY_NUM_MISSING_ARG:
-    desc = "No argument present for \"*\" regex.";
-    break;
-  case MATCH_ONE_CHAR_MISSING_ARG:
-    desc = "No argument present for \"?\" regex.";
-    break;
-  /**/
-  /*default:*/
-  /*  desc = "Unanticipated error state! This is a bug!";*/
-  }
 
   unsigned int addtl_space = 1;
 
   if (errmsg[errmsg_len - 1] != ' ')
   {
-    //  if the last 
     addtl_space++;
   }
 
