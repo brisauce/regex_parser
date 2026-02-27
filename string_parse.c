@@ -26,6 +26,147 @@ char * findWordInString(char * string, char * word)
   return NULL;
 }
 
+void noRegex(arena * a, char ** word_ptr, long * word_start_in_string)
+{
+  if (fgetc(a->fp) == **word_ptr)
+  {
+    if (*word_ptr == a->word)
+    {
+      *word_start_in_string = ftell(a->fp) - 1l;
+    }
+    word_ptr++;
+  }
+  else if (*word_ptr == a->word)
+  {
+    return;
+  }
+  else 
+  {
+    *word_ptr = a->word;
+  }
+}
+
+void charPattern (arena * a, char ** word_ptr, long * word_start_in_string)
+{
+  char A;
+  char Z;
+  *word_ptr = parseCharPattern(*word_ptr, &A, &Z);
+  if (!A || !Z)
+  {
+    //  Error in parsing or invalid char class
+    return;
+  }
+
+  if (!isInCharClass(fgetc(a->fp), A, Z))
+  {
+    //  String doesn't match word, start looking for the word again from the start
+    *word_ptr = a->word;
+  }
+  else 
+  {
+    if (*word_ptr == a->word)
+    {
+      *word_start_in_string = ftell(a->fp) - 1l;
+    }
+
+    //  parseCharPattern will have advanced the word pointer up to the ']' part in the char 
+    //  pattern regexp, this will move it past that so we are completely past it
+    (*word_ptr) ++;
+  }
+}
+
+void matchOneOrMoreChars(arena * a, char ** word_ptr, long * word_start_in_string)
+{
+  //  The first two chars in the word will be the argument, i.e. what character we are looking for,
+  //  followed by the regex character.
+
+  long start = ftell(a->fp);
+  while(!feof(a->fp) && fgetc(a->fp) == **word_ptr){}
+
+  if (ftell(a->fp) - 1l == start)
+  {
+    *word_ptr = a->word;
+  }
+  else 
+  {
+    if (*word_ptr == a->word)
+    {
+      *word_start_in_string = ftell(a->fp) - 1;
+    }
+
+    word_ptr += 2;
+  }
+}
+
+void matchZeroOrOneChar(arena * a, char ** word_ptr, long * word_start_in_string)
+{
+  //  The first two chars in the word will be the argument followed by the regex character
+
+  if (**word_ptr != fgetc(a->fp))
+  {
+    fseek(a->fp, -1, SEEK_CUR);
+  }
+  else if (*word_ptr == a->word)
+  {
+    *word_start_in_string = ftell(a->fp) - 1l;
+  }
+
+  *word_ptr += 2;
+}
+
+void matchOneOrMoreWithEsc (arena * a, char ** word_ptr, long * word_start_in_string)
+{
+  //  The first three characters of the word are all part of a regex- the first is 
+  //  the slash indicating an escape character, the second is the character we are looking 
+  //  for, and the third is the regex character.
+
+  long start = ftell(a->fp);
+  while ( !feof(a->fp) && fgetc(a->fp) == *word_ptr[1]){}
+
+  if (ftell(a->fp) - 1l == start)
+  {
+    *word_ptr = a->word;
+  }
+  else 
+  {
+    if (*word_ptr == a->word)
+    {
+      *word_start_in_string = ftell(a->fp) - 1l;
+    }
+
+    *word_ptr += 3;
+  }
+}
+
+void escapeChar (arena * a, char ** word_ptr, long * word_start_in_string)
+{
+  if (fgetc(a->fp) != *word_ptr[1])
+  {
+    *word_ptr = a->word;
+  }
+  else if (*word_ptr == a->word)
+  {
+    *word_start_in_string = ftell(a->fp) - 1l;
+  }
+  else 
+  {
+    *word_ptr += 3;
+  }
+}
+
+void matchZeroOrOneWithEsc (arena * a, char ** word_ptr, long * word_start_in_string)
+{
+  if (fgetc(a->fp) != *word_ptr[1])
+  {
+    fseek(a->fp, -1, SEEK_CUR);
+  }
+  else if (*word_ptr == a->word)
+  {
+    *word_start_in_string = ftell(a->fp) - 1l;
+  }
+
+  *word_ptr += 3;
+}
 
 int findWordInStringRegex(arena * a, word_loc * loc)
 {
@@ -106,146 +247,34 @@ int findWordInStringRegex(arena * a, word_loc * loc)
     switch (state) 
     {
     case NONE:
-      if (fgetc(a->fp) == *word_ptr)
-      {
-        if (word_ptr == a->word)
-        {
-          word_start_in_string = ftell(a->fp) - 1l;
-        }
-        word_ptr++;
-      }
-      else if (word_ptr == a->word)
-      {
-        break;
-      }
-      else 
-      {
-        word_ptr = a->word;
-      }
+      noRegex(a, &word_ptr, &word_start_in_string);
       break;
     case CHAR_PATTERN:
-    {
-      char A;
-      char Z;
-      word_ptr = parseCharPattern(word_ptr, &A, &Z);
-      if (!A || !Z)
-      {
-        //  Error in parsing or invalid char class
-        return STRING_PARSE_FAIL;
-      }
-
-      if (!isInCharClass(fgetc(a->fp), A, Z))
-      {
-        //  String doesn't match word, start looking for the word again from the start
-        word_ptr = a->word;
-      }
-      else 
-      {
-        if (word_ptr == a->word)
-        {
-          word_start_in_string = ftell(a->fp) - 1l;
-        }
-
-        //  parseCharPattern will have advanced the word pointer up to the ']' part in the char 
-        //  pattern regexp, this will move it past that so we are completely past it
-        word_ptr ++;
-      }
+      charPattern(a, &word_ptr, &word_start_in_string);
       break;
-    }
     case MATCH_ONE_OR_MORE_CHARS: 
-    {
-      //  The first two chars in the word will be the argument, i.e. what character we are looking for,
-      //  followed by the regex character.
-
-      long start = ftell(a->fp);
-      while(!feof(a->fp) && fgetc(a->fp) == *word_ptr){}
-
-      if (ftell(a->fp) - 1l == start)
-      {
-        word_ptr = a->word;
-      }
-      else 
-      {
-        if (word_ptr == a->word)
-        {
-          word_start_in_string = ftell(a->fp) - 1;
-        }
-
-        word_ptr += 2;
-      }
-
+      matchOneOrMoreChars(a, &word_ptr, &word_start_in_string);
       break;
-    }
     case MATCH_ZERO_OR_ONE_CHAR:
-      //  The first two chars in the word will be the argument followed by the regex character
-
-      if (*word_ptr != fgetc(a->fp))
-      {
-        fseek(a->fp, -1, SEEK_CUR);
-      }
-      else if (word_ptr == a->word)
-      {
-        word_start_in_string = ftell(a->fp) - 1l;
-      }
-
-      word_ptr += 2;
+      matchZeroOrOneChar(a, &word_ptr, &word_start_in_string);
       break;
+    //  Probably going to remove these next 2
     case MATCH_ONE_OR_MORE_CHARS_WITH_ESCAPE_CHAR:
-    {
-      //  The first three characters of the word are all part of a regex- the first is 
-      //  the slash indicating an escape character, the second is the character we are looking 
-      //  for, and the third is the regex character.
-
-      long start = ftell(a->fp);
-      while ( !feof(a->fp) && fgetc(a->fp) == word_ptr[1]){}
-
-      if (ftell(a->fp) - 1l == start)
-      {
-        word_ptr = a->word;
-      }
-      else 
-      {
-        if (word_ptr == a->word)
-        {
-          word_start_in_string = ftell(a->fp) - 1l;
-        }
-
-        word_ptr += 3;
-      }
-
+      matchOneOrMoreWithEsc(a, &word_ptr, &word_start_in_string);
       break;
-    }
     case MATCH_ZERO_OR_ONE_CHAR_WITH_ESCAPE_CHAR:
-
-      if (fgetc(a->fp) != word_ptr[1])
-      {
-        fseek(a->fp, -1, SEEK_CUR);
-      }
-      else if (word_ptr == a->word)
-      {
-        word_start_in_string = ftell(a->fp) - 1l;
-      }
-
-      word_ptr += 3;
-
+      matchZeroOrOneWithEsc(a, &word_ptr, &word_start_in_string);
       break;
+
     case ESCAPE_CHAR:
-
-      if (fgetc(a->fp) != word_ptr[1])
-      {
-        word_ptr = a->word;
-      }
-      else if (word_ptr == a->word)
-      {
-        word_start_in_string = ftell(a->fp) - 1l;
-      }
-      else 
-      {
-        word_ptr += 3;
-      }
-
+      escapeChar(a, &word_ptr, &word_start_in_string);
       break;
     case ERROR:
+      return STRING_PARSE_FAIL;
+    }
+
+    if (getCurrentErrorState() != NO_ERROR_STATE)
+    {
       return STRING_PARSE_FAIL;
     }
   }
