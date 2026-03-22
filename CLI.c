@@ -115,7 +115,7 @@ arena * parseCLI(int argc, char ** argv)
       arenaDestroy(a);
       exit(EXIT_SUCCESS);
     }
-    else if (!strcmp("--regexp_supported", argv[i]))
+    else if (!strcmp("--regex_supported", argv[i]))
     {
       printRegexSupport();
       arenaDestroy(a);
@@ -126,6 +126,17 @@ arena * parseCLI(int argc, char ** argv)
       printAsciiTable();
       arenaDestroy(a);
       exit(EXIT_SUCCESS);
+    }
+    else if (!strcmp("--regex-test", argv[i]))
+    {
+      if (!a->word)
+      {
+        printf("To use the regex test feature, pass the word to test before --regex_test.\nExiting\n");
+        arenaDestroy(a);
+        exit(EXIT_FAILURE);
+      }
+      a->regex_test = true;
+      goto Return;
     }
     else if (!a->word) 
     {
@@ -159,6 +170,7 @@ arena * parseCLI(int argc, char ** argv)
     exit(EXIT_FAILURE);
   }
 
+  Return:
   return a;
 }
 

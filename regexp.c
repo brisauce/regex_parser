@@ -1,10 +1,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <assert.h>
 
 #include "error_handling.h"
 #include "string_parse.h"
 #include "regexp.h"
+
+bool validOneOrMoreChars (char * word, unsigned int * len);
+bool validZeroOrOneChar (char * word, unsigned int * len);
+bool validCharClass (char * word, unsigned int * len);
+
 
 bool isInCharClass(char c, char A, char Z)
 {
@@ -12,9 +18,20 @@ bool isInCharClass(char c, char A, char Z)
   return c >= A && c <= Z;
 }
 
-bool validEscChar (char * string)
+bool validEscChar (char * word, unsigned int * len)
 {
-  switch (string[1])
+  if (*word != '\\')
+  {
+    return false;
+  }
+
+  if (strlen(word) < 2)
+  {
+    //  Word is too short to contain an esc. char.
+    return false;
+  }
+
+  switch (word[1])
   {
     case '\\': 
     case '*':
@@ -22,88 +39,176 @@ bool validEscChar (char * string)
     case '[':
     case '-':
     case ']':
+      *len = 2;
       return true;
     default:
-      setErrorState(INVALID_ESCAPE_CHAR);
       return false;
   }
 }
 
-enum whichRegex regexpParse(char * string)
+//  Implementation note- If a regular expression was not detected or one character has 
+//  passed and the regex character in question has been detected, then it's fair to say the 
+//  character the regular expresssion is there for is in the previous character spot.
+
+bool validOneOrMoreChars (char * word, unsigned int * len)
 {
-  if (*string == '[')
-  {
-    //  Character class
-    for(;*string != ']' && *string != '\n' && *string != '\0'; string++){}
+  //  Check for other regular expressions, then see if they are followed by the 
+  //  regular expression for one or more characters.
 
-    if (*string != ']')
+  if (*word == '*')
+  {
+    return false;
+  }
+
+  unsigned int length;
+  char * start = word;
+  char * last_sig_char = word;
+  for (; *word != '\n' && *word != '\0'; word ++)
+  {
+    if (word - last_sig_char > 1)
     {
-      setErrorState(EXPECTED_CLOSING_BRACE);
-      return ERROR;
+      return false;      
     }
-    else 
+    else if (validCharClass(word, &length))
     {
-      return CHAR_PATTERN;
+      word += length - 1;
+      last_sig_char += length;
+    }
+    else if (validEscChar(word, &length))
+    {
+      word += length - 1;
+      last_sig_char += length;
+    }
+    else if (*word == '*')
+    {
+      *len = word - start; 
+      return true;
     }
   }
-  if (*string == '\\')
+
+  return false;
+}
+
+bool validZeroOrOneChar (char * word, unsigned int * len)
+{
+  //  Check for other regular expressions, then see if they are followed by the 
+  //  regular expression for zero or one character.
+
+  if (*word == '?')
   {
-    //  Escape character, either as part of a "one or more chars" or "zero or one" regexp 
-    //  or by itself
+    return false;
+  }
 
-    if (!validEscChar(string))
+  unsigned int length;
+  char * start = word;
+  char * last_sig_char = word;
+  for (; *word != '\n' && *word != '\0'; word ++)
+  {
+    if (word - last_sig_char > 1)
     {
-      return ERROR;
+      return false;      
     }
-
-    if (strlen(string) >= 3ul)
+    else if (validCharClass(word, &length))
     {
-      if (string[2] == '*')
-      {
-        return MATCH_ONE_OR_MORE_CHARS_WITH_ESCAPE_CHAR;
-      }
-      else if (string[2] == '?')
-      {
-        return MATCH_ZERO_OR_ONE_CHAR_WITH_ESCAPE_CHAR;
-      }
+      word += length - 1;
+      last_sig_char += length;
     }
-    else
+    else if (validEscChar(word, &length))
     {
-      return ESCAPE_CHAR;
+      word += length - 1;
+      last_sig_char += length;
+    }
+    else if (*word == '?')
+    {
+      *len = word - start; 
+      return true;
     }
   }
-  else if (string[1] == '*')
+
+  return false;
+}
+
+bool validCharClass (char * word, unsigned int * len)
+{
+  if (*word != '[')
   {
-    return MATCH_ONE_OR_MORE_CHARS;
+    return false;
   }
-  else if (string[1] == '?')
+
+  char * start = word;
+  unsigned int length;
+  bool hyphen = false;
+
+  //  Move the word pointer past the left bracket
+  word ++;
+
+  for (; *word != '\n' && *word != '\0'; word++)
+  {
+    if (validEscChar(word, &length))
+    {
+      //  a valid escape character may contain ']', so this needs to be skipped
+      word += length - 1;
+    }
+    else if (*word == '-')
+    {
+      //  Hyphen separating the two arguments to a char class
+      hyphen = true; 
+    }
+    else if (*word == ']' && hyphen)
+    {
+      *len = word - start;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+enum whichRegex regexpParse(char * word, unsigned int * len)
+{
+  //  This order of checking for regex is intentional.
+  //
+  //  Since a "?" or "*" regex may be grouped with a escape char. or char. class,
+  //  with the escape char. or char. class leading, they need to be validated
+  //  for the trailing syntax regex first.
+  if (validZeroOrOneChar(word, len))
   {
     return MATCH_ZERO_OR_ONE_CHAR;
   }
-
-  return NONE;
+  else if (validOneOrMoreChars(word, len))
+  {
+    return MATCH_ONE_OR_MORE_CHARS;
+  }
+  else if (validEscChar(word, len))
+  {
+    return ESCAPE_CHAR;
+  }
+  else if (validCharClass(word, len))
+  {
+    return CHAR_PATTERN;
+  }
+  else 
+  {
+    return NONE;
+  }
 }
 
-char * advancePntrToLBracket(char * word)
-{
-  for (;*word != ']' && *word != '\0'; word++)
-  {}
-  return word;
-}
 
-char * parseCharPattern(char * word, char * A, char * Z)
+
+void parseCharPattern(char * word, char * A, char * Z)
 {
-  //  ensure a regex for a character pattern is in the form:
+  //  Ensure a regex for a character pattern is in the form:
   //
   //  [A-Z]
   //
-  //  spaces may be included and will not get in the way of parsing the regex.
+  //  Either *A or *Z being '\0' indicates an error state.
   //
-  //  either *A or *Z being '\0' indicates an error state.
+  //  A valid substitution for 'A' or 'Z' in the above example is an escape character.
   //
   bool postHyphen = false;
   char a = '\0';
   char z = '\0';
+  unsigned int dontuseme;
   for (;*word != ']'; word ++)
   {
     if (*word == '[')
@@ -111,7 +216,7 @@ char * parseCharPattern(char * word, char * A, char * Z)
       continue;
     }
 
-    if (regexpParse(word) == ESCAPE_CHAR)
+    if (validEscChar(word, &dontuseme))
     {
       if (!a)
       {
@@ -153,13 +258,7 @@ char * parseCharPattern(char * word, char * A, char * Z)
     }
   }
 
-  if (*word != ']')
-  {
-    //  the function calling this one will expect the word pointer returned to be pointing 
-    //  to the ']' bracket, so if the previous loop didn't make it all the way there we 
-    //  have to help it get to the finish line.
-    word = advancePntrToLBracket(word);
-  }
+  assert(*word == ']');
 
 Return:
 
@@ -174,6 +273,5 @@ Return:
 
   *A = a;
   *Z = z;
-  return word;
 }
 

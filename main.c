@@ -46,8 +46,11 @@
 void regexDetectTest(char * string)
 {
   char * test_regex = string;
+  const unsigned int dont_use_me;
 
-  enum whichRegex result = regexpParse(test_regex);
+  printf("Testing string \"%s\" for regular expressions.\n", string);
+
+  enum whichRegex result = regexpParse(test_regex, (unsigned int *) &dont_use_me);
   
   char * desc;
   switch (result)
@@ -67,15 +70,8 @@ void regexDetectTest(char * string)
     case ESCAPE_CHAR:
       desc = "ESCAPE_CHAR";
       break;
-    case MATCH_ONE_OR_MORE_CHARS_WITH_ESCAPE_CHAR:
-      desc = "MATCH_ONE_OR_MORE_CHARS_WITH_ESCAPE_CHAR";
-      break;
-    case MATCH_ZERO_OR_ONE_CHAR_WITH_ESCAPE_CHAR:
-      desc = "MATCH_ZERO_OR_ONE_CHAR_WITH_ESCAPE_CHAR";
-      break;
     case NONE:
       desc = "NONE";
-      break;
   }
 
   printf("Test regex: %s\n", test_regex);
@@ -140,10 +136,21 @@ void printFoundWords (arena * a)
 
     //  If the position pointer is one beyond the index where the word ends, the word 
     //  has been read out.
+    putchar('\"');
     while (ftell(a->fp) != read->word_end_pos + sizeof(char))
     {
-      putchar(fgetc(a->fp));
+      char c = fgetc(a->fp);
+
+      if (c == EOF)
+      {
+        fputs("EOF", stdout);
+      }
+      else
+      {
+        putchar(c);
+      }
     }
+    putchar('\"');
 
     putchar('\n');
   }
@@ -200,6 +207,13 @@ int main (int argc, char ** argv)
 {
 
   arena * a = parseCLI(argc, argv);
+
+  if (a->regex_test)
+  {
+    regexDetectTest(a->word);
+    arenaDestroy(a);
+    exit(EXIT_SUCCESS);
+  }
 
   //  Dynamic array to hold pointers to the first and last character pointers of every word 
 

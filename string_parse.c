@@ -26,6 +26,17 @@ char * findWordInString(char * string, char * word)
   return NULL;
 }
 
+//  A note on why 
+//
+//  ftell(a->fp) - 1l 
+//
+//  Appears in the code. 
+//
+//  fgetc, which is the function used to grab a single character from the file, also 
+//  advances the position indicator by one character width in the file. This makes ftell(),
+//  which returns the location of the position indicator in the file,
+//  point to the character *following* the character which I want to know the position of.
+//  Useful for conciseness, but not so much for my specific purposes
 void noRegex(arena * a, char ** word_ptr, long * word_start_in_string)
 {
   if (fgetc(a->fp) == **word_ptr)
@@ -34,7 +45,7 @@ void noRegex(arena * a, char ** word_ptr, long * word_start_in_string)
     {
       *word_start_in_string = ftell(a->fp) - 1l;
     }
-    word_ptr++;
+    (*word_ptr)++;
   }
   else if (*word_ptr == a->word)
   {
@@ -50,7 +61,7 @@ void charPattern (arena * a, char ** word_ptr, long * word_start_in_string)
 {
   char A;
   char Z;
-  *word_ptr = parseCharPattern(*word_ptr, &A, &Z);
+  parseCharPattern(*word_ptr, &A, &Z);
   if (!A || !Z)
   {
     //  Error in parsing or invalid char class
@@ -81,20 +92,100 @@ void matchOneOrMoreChars(arena * a, char ** word_ptr, long * word_start_in_strin
   //  followed by the regex character.
 
   long start = ftell(a->fp);
-  while(!feof(a->fp) && fgetc(a->fp) == **word_ptr){}
+  const unsigned int length = 0;
+
+  #define MATCH_NOT_FOUND LONG_MAX
+  long last_matching_char = MATCH_NOT_FOUND;
+  if (validEscChar(*word_ptr, (unsigned int *) &length))
+  {
+    while(true)
+    {
+      char c = fgetc(a->fp);
+
+      if (c == EOF)
+      {
+        break;
+      }
+      else if (c != (*word_ptr)[1])
+      {
+        break;
+      }
+
+      last_matching_char = ftell(a->fp);
+    }
+  }
+  else if (validCharClass(*word_ptr, (unsigned int *) &length))
+  {
+    //  The "one or more chars" regex can be preceded by a char. class regex
+    char A;
+    char Z;
+    parseCharPattern(*word_ptr, &A, &Z);
+
+    while(true)
+    {
+      char c = fgetc(a->fp);
+
+      if (c == EOF)
+      {
+        break;
+      }
+      else if (!isInCharClass(c, A, Z))
+      {
+        break;
+      }
+
+      last_matching_char = ftell(a->fp);
+    }
+  }
+  else 
+  {
+    //  Regular old regex for "one or more chars", no grouping
+    while(true)
+    {
+      char c = fgetc(a->fp);
+
+      if (c == EOF)
+      {
+        break;
+      }
+      else if (c != **word_ptr)
+      {
+        break;
+      }
+
+      last_matching_char = ftell(a->fp);
+    }
+  }
 
   if (ftell(a->fp) - 1l == start)
   {
+    //  Did not advance the pos. indicator beyond the first char. checked. 
+    //  No match found. Need to start again from the beginning.
     *word_ptr = a->word;
   }
   else 
   {
     if (*word_ptr == a->word)
     {
-      *word_start_in_string = ftell(a->fp) - 1;
+      *word_start_in_string = start;
+    }
+    
+    //  Set the position indicator to just after the last matching char, where the program 
+    //  expects it to be
+    if (last_matching_char != MATCH_NOT_FOUND)
+    {
+      fseek(a->fp, last_matching_char, SEEK_SET);
     }
 
-    word_ptr += 2;
+    if (!length)
+    {
+      *word_ptr += 2;
+    }
+    else 
+    {
+      *word_ptr += length;
+    }
+
   }
 }
 
@@ -102,39 +193,49 @@ void matchZeroOrOneChar(arena * a, char ** word_ptr, long * word_start_in_string
 {
   //  The first two chars in the word will be the argument followed by the regex character
 
-  if (**word_ptr != fgetc(a->fp))
-  {
-    fseek(a->fp, -1, SEEK_CUR);
-  }
-  else if (*word_ptr == a->word)
-  {
-    *word_start_in_string = ftell(a->fp) - 1l;
-  }
+  unsigned int length;
+  char cur_file_char = fgetc(a->fp);
 
-  *word_ptr += 2;
-}
-
-void matchOneOrMoreWithEsc (arena * a, char ** word_ptr, long * word_start_in_string)
-{
-  //  The first three characters of the word are all part of a regex- the first is 
-  //  the slash indicating an escape character, the second is the character we are looking 
-  //  for, and the third is the regex character.
-
-  long start = ftell(a->fp);
-  while ( !feof(a->fp) && fgetc(a->fp) == *word_ptr[1]){}
-
-  if (ftell(a->fp) - 1l == start)
+  if (validEscChar(*word_ptr, &length))
   {
-    *word_ptr = a->word;
-  }
-  else 
-  {
-    if (*word_ptr == a->word)
+    if ((*word_ptr)[1] != cur_file_char)
+    {
+      fseek(a->fp, -1, SEEK_CUR);
+    }
+    else if (*word_ptr == a->word)
     {
       *word_start_in_string = ftell(a->fp) - 1l;
     }
+    *word_ptr += length;
+  }
+  else if (validCharClass(*word_ptr, &length))
+  {
+    char A;
+    char Z;
+    parseCharPattern(*word_ptr, &A, &Z);
 
-    *word_ptr += 3;
+
+    if (cur_file_char != A && cur_file_char != Z)
+    {
+      fseek(a->fp, -1, SEEK_CUR);
+    }
+    else if (*word_ptr == a->word)
+    {
+      *word_start_in_string = ftell(a->fp) - 1l;
+    }
+    *word_ptr += length;
+  }
+  else
+  {
+    if (**word_ptr != cur_file_char)
+    {
+      fseek(a->fp, -1, SEEK_CUR);
+    }
+    else if (*word_ptr == a->word)
+    {
+      *word_start_in_string = ftell(a->fp) - 1l;
+    }
+    *word_ptr += 2;
   }
 }
 
@@ -152,20 +253,6 @@ void escapeChar (arena * a, char ** word_ptr, long * word_start_in_string)
   {
     *word_ptr += 3;
   }
-}
-
-void matchZeroOrOneWithEsc (arena * a, char ** word_ptr, long * word_start_in_string)
-{
-  if (fgetc(a->fp) != *word_ptr[1])
-  {
-    fseek(a->fp, -1, SEEK_CUR);
-  }
-  else if (*word_ptr == a->word)
-  {
-    *word_start_in_string = ftell(a->fp) - 1l;
-  }
-
-  *word_ptr += 3;
 }
 
 int findWordInStringRegex(arena * a, word_loc * loc)
@@ -210,6 +297,8 @@ int findWordInStringRegex(arena * a, word_loc * loc)
   long word_start_in_string = NOT_FOUND;
   long word_end_in_string = NOT_FOUND;
 
+  //  Used to move past the regexp which was just parsed in the word.
+  unsigned int length;
   while (!feof(a->fp) && *word_ptr)
   {
 
@@ -228,21 +317,11 @@ int findWordInStringRegex(arena * a, word_loc * loc)
     {
       //  Optimization - This prevents the program from needing 
       //  to check the word for every iteration of the loop
-      state = regexpParse(word_ptr);
+      state = regexpParse(word_ptr, &length);
       current_word_index = word_ptr;
     }
 
-    //  A note on why 
-    //
-    //  ftell(a->fp) - 1l 
-    //
-    //  Appears in the code. 
-    //
-    //  fgetc, which is the function used to grab a single character from the file, also 
-    //  advances the position indicator by one character width in the file. This makes ftell(),
-    //  which returns the location of the position indicator in the file,
-    //  point to the character *following* the character which I want to know the position of.
-    //  Useful for conciseness, but not so much for my specific purposes
+
 
     switch (state) 
     {
@@ -258,14 +337,6 @@ int findWordInStringRegex(arena * a, word_loc * loc)
     case MATCH_ZERO_OR_ONE_CHAR:
       matchZeroOrOneChar(a, &word_ptr, &word_start_in_string);
       break;
-    //  Probably going to remove these next 2
-    case MATCH_ONE_OR_MORE_CHARS_WITH_ESCAPE_CHAR:
-      matchOneOrMoreWithEsc(a, &word_ptr, &word_start_in_string);
-      break;
-    case MATCH_ZERO_OR_ONE_CHAR_WITH_ESCAPE_CHAR:
-      matchZeroOrOneWithEsc(a, &word_ptr, &word_start_in_string);
-      break;
-
     case ESCAPE_CHAR:
       escapeChar(a, &word_ptr, &word_start_in_string);
       break;
@@ -291,4 +362,3 @@ int findWordInStringRegex(arena * a, word_loc * loc)
 
   return STRING_PARSE_SUCCESS;
 }
-
