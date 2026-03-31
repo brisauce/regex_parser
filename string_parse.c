@@ -9,6 +9,7 @@
 #include "regexp.h"
 #include "error_handling.h"
 #include "word_loc_struct.h"
+#include "file_io.h"
 
 char * findWordInString(char * string, char * word)
 {
@@ -28,7 +29,7 @@ char * findWordInString(char * string, char * word)
 
 //  A note on why 
 //
-//  ftell(a->fp) - 1l 
+//  ftell(a->fp) - sizeof(char)l 
 //
 //  Appears in the code. 
 //
@@ -37,24 +38,26 @@ char * findWordInString(char * string, char * word)
 //  which returns the location of the position indicator in the file,
 //  point to the character *following* the character which I want to know the position of.
 //  Useful for conciseness, but not so much for my specific purposes
+
 void noRegex(arena * a, char ** word_ptr, long * word_start_in_string)
 {
   if (fgetc(a->fp) == **word_ptr)
   {
+
+    //  Match. If it's the first letter in the word, save it in word_start_in_string.
     if (*word_ptr == a->word)
     {
-      *word_start_in_string = ftell(a->fp) - 1l;
+      *word_start_in_string = ftell(a->fp) - (long) sizeof(char);
     }
+
     (*word_ptr)++;
   }
-  else if (*word_ptr == a->word)
+  else if (*word_ptr != a->word)
   {
-    return;
-  }
-  else 
-  {
+    //  No match and need to reset word_ptr to start looking from the beginning again
     *word_ptr = a->word;
   }
+
 }
 
 void charPattern (arena * a, char ** word_ptr, long * word_start_in_string)
@@ -77,7 +80,7 @@ void charPattern (arena * a, char ** word_ptr, long * word_start_in_string)
   {
     if (*word_ptr == a->word)
     {
-      *word_start_in_string = ftell(a->fp) - 1l;
+      *word_start_in_string = ftell(a->fp) - (long) sizeof(char);
     }
 
     //  parseCharPattern will have advanced the word pointer up to the ']' part in the char 
@@ -92,12 +95,15 @@ void matchOneOrMoreChars(arena * a, char ** word_ptr, long * word_start_in_strin
   //  followed by the regex character.
 
   long start = ftell(a->fp);
-  const unsigned int length = 0;
+  unsigned int length = 0;
 
   #define MATCH_NOT_FOUND LONG_MAX
   long last_matching_char = MATCH_NOT_FOUND;
-  if (validEscChar(*word_ptr, (unsigned int *) &length))
+  if (validEscChar(*word_ptr, &length))
   {
+    //  Length of the regex includes the esc. char. regex and the '*' for "one or more chars"
+    //  The length of the esc. char will be accounted for from validEscChar()
+    length ++;
     while(true)
     {
       char c = fgetc(a->fp);
@@ -114,9 +120,16 @@ void matchOneOrMoreChars(arena * a, char ** word_ptr, long * word_start_in_strin
       last_matching_char = ftell(a->fp);
     }
   }
-  else if (validCharClass(*word_ptr, (unsigned int *) &length))
+  else if (validCharClass(*word_ptr, &length))
   {
-    //  The "one or more chars" regex can be preceded by a char. class regex
+    //  The "one or more chars" regex can be preceded by a char. class regex and grouped
+    //  together to search for a series of characters.
+
+    //  Length of the regex includes the char. class regex and the '*' for "one or more chars"
+    //  The length of the char. class will be accounted for from validEscChar()
+
+    length ++;
+
     char A;
     char Z;
     parseCharPattern(*word_ptr, &A, &Z);
@@ -140,6 +153,8 @@ void matchOneOrMoreChars(arena * a, char ** word_ptr, long * word_start_in_strin
   else 
   {
     //  Regular old regex for "one or more chars", no grouping
+
+    length = 2;
     while(true)
     {
       char c = fgetc(a->fp);
@@ -157,7 +172,7 @@ void matchOneOrMoreChars(arena * a, char ** word_ptr, long * word_start_in_strin
     }
   }
 
-  if (ftell(a->fp) - 1l == start)
+  if (ftell(a->fp) - (long) sizeof(char) == start)
   {
     //  Did not advance the pos. indicator beyond the first char. checked. 
     //  No match found. Need to start again from the beginning.
@@ -170,22 +185,12 @@ void matchOneOrMoreChars(arena * a, char ** word_ptr, long * word_start_in_strin
       *word_start_in_string = start;
     }
     
-    //  Set the position indicator to just after the last matching char, where the program 
-    //  expects it to be
     if (last_matching_char != MATCH_NOT_FOUND)
     {
       fseek(a->fp, last_matching_char, SEEK_SET);
     }
 
-    if (!length)
-    {
-      *word_ptr += 2;
-    }
-    else 
-    {
-      *word_ptr += length;
-    }
-
+    *word_ptr += length;
   }
 }
 
@@ -200,13 +205,15 @@ void matchZeroOrOneChar(arena * a, char ** word_ptr, long * word_start_in_string
   {
     if ((*word_ptr)[1] != cur_file_char)
     {
-      fseek(a->fp, -1, SEEK_CUR);
+      fseek(a->fp, -sizeof(char), SEEK_CUR);
     }
     else if (*word_ptr == a->word)
     {
-      *word_start_in_string = ftell(a->fp) - 1l;
+      fseek(a->fp, -sizeof(char), SEEK_CUR);
+      *word_start_in_string = ftell(a->fp);
     }
-    *word_ptr += length;
+
+    *word_ptr += length + sizeof(char);
   }
   else if (validCharClass(*word_ptr, &length))
   {
@@ -217,25 +224,29 @@ void matchZeroOrOneChar(arena * a, char ** word_ptr, long * word_start_in_string
 
     if (cur_file_char != A && cur_file_char != Z)
     {
-      fseek(a->fp, -1, SEEK_CUR);
+      fseek(a->fp, -sizeof(char), SEEK_CUR);
     }
     else if (*word_ptr == a->word)
     {
-      *word_start_in_string = ftell(a->fp) - 1l;
+      fseek(a->fp, -sizeof(char), SEEK_CUR);
+      *word_start_in_string = ftell(a->fp);    
     }
-    *word_ptr += length;
+
+    *word_ptr += length + sizeof(char);
   }
   else
   {
     if (**word_ptr != cur_file_char)
     {
-      fseek(a->fp, -1, SEEK_CUR);
+      fseek(a->fp, -sizeof(char), SEEK_CUR);
     }
     else if (*word_ptr == a->word)
     {
-      *word_start_in_string = ftell(a->fp) - 1l;
+      fseek(a->fp, -sizeof(char), SEEK_CUR);
+      *word_start_in_string = ftell(a->fp);
     }
-    *word_ptr += 2;
+
+    *word_ptr += 2 * sizeof(char);
   }
 }
 
@@ -247,7 +258,7 @@ void escapeChar (arena * a, char ** word_ptr, long * word_start_in_string)
   }
   else if (*word_ptr == a->word)
   {
-    *word_start_in_string = ftell(a->fp) - 1l;
+    *word_start_in_string = ftell(a->fp) - (long) sizeof(char);
   }
   else 
   {
@@ -260,7 +271,7 @@ int findWordInStringRegex(arena * a, word_loc * loc)
   /*
    *  Parses a string for a char sequence which matches a regex containing word.
    *
-   *  Returns -1 (STRING_PARSE_FAIL) if this fails due to a passed regex word which has poorly 
+   *  Returns -sizeof(char) (STRING_PARSE_FAIL) if this fails due to a passed regex word which has poorly 
    *  implemented regex.
    *
    *  Otherwise, returns a positive number.
@@ -353,7 +364,7 @@ int findWordInStringRegex(arena * a, word_loc * loc)
   if (a->word + strlen(a->word) == word_ptr)
   {
     //  Reached the end of the regex word, meaning there was a complete match.
-    word_end_in_string = ftell(a->fp) - 1l;
+    word_end_in_string = ftell(a->fp) - (long) sizeof(char);
   }
 
   loc->word_start_pos = word_start_in_string;

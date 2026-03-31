@@ -40,6 +40,7 @@
 #include "regexp.h"
 #include "dynamic_array.h"
 #include "word_loc_struct.h"
+#include "file_io.h"
 
 #define ARRAY_ELEMENTS 10
 
@@ -173,34 +174,31 @@ void replaceWords (arena * a)
     word_size_diff = old_word_size - new_word_size;
   }
 
+  //  you can set all of the word locations to their correct offset at once by multiplying
+  //  their index in the dynamic array with the value of the start and end positions 
+  //  respectively
+  if (dynArrayGetArraySize() > 0 && word_size_diff != 0)
+  {
+
+    unsigned int array_size = dynArrayGetArraySize();
+    for (unsigned int i = 1; i < array_size; i++) 
+    {
+      read = dynArrayGetData(i);
+
+      //  Instead of looping through every time you change the position of a word, you 
+      //  can instead change all the positions of the words beforehand by determining the
+      //  number of words that will be changed and changing the positions of the words 
+      //  based on their position in the array.
+      read->word_start_pos += word_size_diff * i;
+      read->word_end_pos += word_size_diff * i;
+    }
+  }
+
   while ( (read = (word_loc *) dynArrayRead(NULL)) )
   {
     replaceWordinFile(a, *read);
-
-    if (!word_size_diff)
-    {
-      continue;
-    }
-
-    unsigned int read_pos = dynArrayGetIndex();
-    unsigned int array_size = dynArrayGetArraySize();
-
-
-    for (unsigned int i = read_pos; i < array_size; i++)
-    {
-      word_loc * indexed_loc = dynArrayGetData(i);
-
-      if (!indexed_loc)
-      {
-        printf("Failed to return data from dynamic array index %d! Exiting\n", i);
-        return;
-      }
-
-      indexed_loc->word_end_pos += word_size_diff;
-      indexed_loc->word_start_pos += word_size_diff;
-
-    }
   }
+
 }
 
 int main (int argc, char ** argv)

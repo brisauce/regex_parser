@@ -2,12 +2,13 @@
 program_name="string_processor"
 test_file_name="test_file.txt"
 
-test_word="he*"
+test_word="colou?r"
+
 text_file_contents=$(
 	cat <<EOF
-testing testing one two three
-testing testing you and me
-hee hee
+We say color,
+but the brits say colour.
+Isn't that interesting?
 EOF
 )
 
@@ -15,12 +16,19 @@ test_word_replacement="kalamazoo"
 
 temp_file_name="temp_doc_wow"
 
+#  The browser gdbgui runs on for its gui. Important that this 
+#  is the name that you can use from the terminal to start it.
+browser_name="google-chrome"
+
 run_gdbgui() {
-	gdbgui -g "gdb --q" --args ./"$program_name" "$test_word" "$test_file_name" "$test_word_replacement"
+  local dir="$(whereis -b $browser_name)"
+  local browser_dir="${dir#"$browser_name: "}"
+	gdbgui -g "gdb --q" --browser "$browser_dir" --args ./"$program_name" "$test_word" "$test_file_name" "$test_word_replacement"
 }
 
 if [ ! -d build ]; then
 	echo "Build directory not found! Run configure.sh and then build.sh"
+  exit 1
 fi
 
 if [ -f .gdbinit ]; then
@@ -45,7 +53,7 @@ EOF
 	cd ..
 else
 	read -n 1 -rp "Warning! .gdbinit not found in project directory.\nContinue? [y/n]" answer
-	if [ $answer == "y" ] || [ $answer == "Y"]; then
+	if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
 		printf "\nProceeding without user scripts...\n"
 	else
 		exit 1
@@ -55,7 +63,7 @@ fi
 cd build
 
 if [ -e $program_name ]; then
-	printf "%s\n" "$text_file_contents" >"$test_file_name"
+	printf "%s\n" "$text_file_contents" > "$test_file_name"
 	run_gdbgui
 else
 	echo "$program_name not found. please run configure.sh then build.sh"

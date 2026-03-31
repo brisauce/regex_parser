@@ -4,13 +4,13 @@ program_name="string_processor"
 
 test_file_name="test_file.txt"
 
-test_word="he*"
+test_word="color"
 
 text_file_contents=$(
 	cat <<EOF
-testing testing one two three
-testing testing you and me
-hee hee
+We say color,
+and the brits say color too.
+Isn't that interesting?
 EOF
 )
 
