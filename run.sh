@@ -1,23 +1,18 @@
 #! /usr/bin/sh
 
-program_name="string_processor"
+. ./data.sh
+program_name=$STRING_PROCESSOR_PROGRAM_NAME 
+test_file_name=$STRING_PROCESSOR_FILE_NAME 
+test_word=$STRING_PROCESSOR_TEST_WORD
 
-test_file_name="test_file.txt"
+text_file_contents=$STRING_PROCESSOR_TEXT_FILE_CONTENTS 
 
-test_word="color"
+test_word_replacement=$STRING_PROCESSOR_TEST_WORD_REPLACEMENT
 
-text_file_contents=$(
-	cat <<EOF
-We say color,
-and the brits say color too.
-Isn't that interesting?
-EOF
-)
-
-test_word_replacement="kalamazoo"
-
+green_text=$(tput setaf 2)
+reset_text_color=$(tput sgr0)
 run_program() {
-	./$program_name "$test_word" "$test_file_name" "$test_word_replacement"
+	./"$program_name" "$test_word" "$test_file_name" "$test_word_replacement"
 }
 
 if [ ! -d build ]; then
@@ -27,14 +22,14 @@ fi
 
 cd build
 
-if [ -e $program_name ]; then
+if [ -e "$program_name" ]; then
 	printf "%s\n" "$text_file_contents" >"$test_file_name"
 
-	echo "Contents of $test_file_name before query-replace:"
-	cat $test_file_name
+	echo "${green_text}Contents of $test_file_name before query-replace:${reset_text_color}"
+	cat "$test_file_name"
 	run_program
-	echo "Contents of $test_file_name after query-replace:"
-	cat $test_file_name
+	echo "${green_text}Contents of $test_file_name after query-replace:${reset_text_color}"
+	cat "$test_file_name"
 else
 	echo "$program_name not found. Please run build.sh."
 fi

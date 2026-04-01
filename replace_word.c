@@ -70,7 +70,6 @@ int replaceWordinFile(arena * a, word_loc loc)
     return REPLACE_WORD_ERROR;
   }
 
-
   //  Go to where the original word started and write the new word in. The position 
   //  indicator for a->fp should be at the end of the new word now and we can overwrite 
   //  the rest of the file.

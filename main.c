@@ -151,9 +151,7 @@ void printFoundWords (arena * a)
         putchar(c);
       }
     }
-    putchar('\"');
-
-    putchar('\n');
+    puts("\"\n");
   }
 }
 
@@ -174,9 +172,6 @@ void replaceWords (arena * a)
     word_size_diff = old_word_size - new_word_size;
   }
 
-  //  you can set all of the word locations to their correct offset at once by multiplying
-  //  their index in the dynamic array with the value of the start and end positions 
-  //  respectively
   if (dynArrayGetArraySize() > 0 && word_size_diff != 0)
   {
 
@@ -189,8 +184,8 @@ void replaceWords (arena * a)
       //  can instead change all the positions of the words beforehand by determining the
       //  number of words that will be changed and changing the positions of the words 
       //  based on their position in the array.
-      read->word_start_pos += word_size_diff * i;
-      read->word_end_pos += word_size_diff * i;
+      read->word_start_pos += (word_size_diff * i) + i;
+      read->word_end_pos += (word_size_diff * i) + i;
     }
   }
 

@@ -271,11 +271,12 @@ int findWordInStringRegex(arena * a, word_loc * loc)
   /*
    *  Parses a string for a char sequence which matches a regex containing word.
    *
-   *  Returns -sizeof(char) (STRING_PARSE_FAIL) if this fails due to a passed regex word which has poorly 
+   *  Returns -1 (STRING_PARSE_FAIL) if this fails due to a passed regex word which has poorly 
    *  implemented regex.
    *
    *  Otherwise, returns a positive number.
    */
+
   long file_start_pos = ftell(a->fp);
   char first_char = fgetc(a->fp);
 
@@ -310,6 +311,7 @@ int findWordInStringRegex(arena * a, word_loc * loc)
 
   //  Used to move past the regexp which was just parsed in the word.
   unsigned int length;
+
   while (!feof(a->fp) && *word_ptr)
   {
 

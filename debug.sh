@@ -1,18 +1,12 @@
 #!/usr/bin/sh
-program_name="string_processor"
-test_file_name="test_file.txt"
+. ./data.sh
+program_name=$STRING_PROCESSOR_PROGRAM_NAME 
+test_file_name=$STRING_PROCESSOR_FILE_NAME 
+test_word=$STRING_PROCESSOR_TEST_WORD
 
-test_word="colou?r"
+text_file_contents=$STRING_PROCESSOR_TEXT_FILE_CONTENTS 
 
-text_file_contents=$(
-	cat <<EOF
-We say color,
-but the brits say colour.
-Isn't that interesting?
-EOF
-)
-
-test_word_replacement="kalamazoo"
+test_word_replacement=$STRING_PROCESSOR_TEST_WORD_REPLACEMENT
 
 temp_file_name="temp_doc_wow"
 
@@ -53,7 +47,7 @@ EOF
 	cd ..
 else
 	read -n 1 -rp "Warning! .gdbinit not found in project directory.\nContinue? [y/n]" answer
-	if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
+	if [ "$answer" = "y" ] || [ "$answer" = "Y" ]; then
 		printf "\nProceeding without user scripts...\n"
 	else
 		exit 1
