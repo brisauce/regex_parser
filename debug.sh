@@ -17,7 +17,7 @@ browser_name="google-chrome"
 run_gdbgui() {
   local dir="$(whereis -b $browser_name)"
   local browser_dir="${dir#"$browser_name: "}"
-	gdbgui -g "gdb --q" --browser "$browser_dir" --args ./"$program_name" "$test_word" "$test_file_name" "$test_word_replacement"
+	gdbgui -g "gdb --q" --browser "$browser_dir" --args ./"$program_name" "$test_word" "$test_file_name" #"$test_word_replacement"
 }
 
 if [ ! -d build ]; then

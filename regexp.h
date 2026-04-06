@@ -15,7 +15,7 @@ enum whichRegex {
 
 bool isInCharClass(char c, char A, char Z);
 
-void parseCharPattern(char * word, char * A, char * Z);
+char * parseCharPattern(char * word, char * A, char * Z);
 
 bool validEscChar (char * word, unsigned int * len);
 

@@ -23,7 +23,7 @@ fi
 cd build
 
 if [ -e "$program_name" ]; then
-	printf "%s\n" "$text_file_contents" >"$test_file_name"
+	printf "%s\n" "$text_file_contents" > "$test_file_name"
 
 	echo "${green_text}Contents of $test_file_name before query-replace:${reset_text_color}"
 	cat "$test_file_name"

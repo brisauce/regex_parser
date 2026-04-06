@@ -195,7 +195,7 @@ enum whichRegex regexpParse(char * word, unsigned int * len)
 
 
 
-void parseCharPattern(char * word, char * A, char * Z)
+char * parseCharPattern(char * word, char * A, char * Z)
 {
   //  Ensure a regex for a character pattern is in the form:
   //
@@ -273,5 +273,6 @@ Return:
 
   *A = a;
   *Z = z;
+  return word;
 }
 

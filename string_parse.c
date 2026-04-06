@@ -64,7 +64,7 @@ void charPattern (arena * a, char ** word_ptr, long * word_start_in_string)
 {
   char A;
   char Z;
-  parseCharPattern(*word_ptr, &A, &Z);
+  char * new_ptr = parseCharPattern(*word_ptr, &A, &Z);
   if (!A || !Z)
   {
     //  Error in parsing or invalid char class
@@ -78,6 +78,7 @@ void charPattern (arena * a, char ** word_ptr, long * word_start_in_string)
   }
   else 
   {
+    //  Match found, earmark pointer if at the start of the word
     if (*word_ptr == a->word)
     {
       *word_start_in_string = ftell(a->fp) - (long) sizeof(char);
@@ -85,7 +86,7 @@ void charPattern (arena * a, char ** word_ptr, long * word_start_in_string)
 
     //  parseCharPattern will have advanced the word pointer up to the ']' part in the char 
     //  pattern regexp, this will move it past that so we are completely past it
-    (*word_ptr) ++;
+    *word_ptr = new_ptr + 1;
   }
 }
 
