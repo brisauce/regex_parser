@@ -8,7 +8,6 @@ test_file_name=$STRING_PROCESSOR_FILE_NAME
 text_file_contents=$STRING_PROCESSOR_TEXT_FILE_CONTENTS 
 
 test_word_replacement=$STRING_PROCESSOR_TEST_WORD_REPLACEMENT
-test_word_replacement='friends'
 
 red_text=$(tput setaf 1)
 green_text=$(tput setaf 2)
