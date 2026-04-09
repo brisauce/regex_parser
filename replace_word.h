@@ -8,6 +8,6 @@
 #define REPLACE_WORD_SUCCESS 1
 
 int replaceWordinFile(arena * a, word_loc loc);
-int copyFile(FILE * src, long src_ptr, FILE * dest, long dest_ptr);
+enum copyFileStatus copyFile(FILE * src, long src_ptr, FILE * dest, long dest_ptr);
 
 #endif

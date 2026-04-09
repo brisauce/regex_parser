@@ -68,7 +68,9 @@ void printAsciiTable(void)
   //  prints all printable characters in the ascii table.
   puts("\
 While this program does not support the input of characters in decimal format, the character's\n\
-decimal equivalent is printed nonetheless to display these characters' relationship to one another.\n");
+decimal equivalent is printed nonetheless to display these characters' relationship to one another.\n\
+\n\
+The non-printable characters are omitted.\n");
   puts("dec|char|notes");
   for (char c = ' '; c <= '~'; c++)
   {
@@ -85,16 +87,11 @@ decimal equivalent is printed nonetheless to display these characters' relations
 
 arena * parseCLI(int argc, char ** argv)
 {
-  //  Parses the CLI. Can exit on its own. is the only function allowed to do this.
+  //  Parses the CLI for options and data.
   if (argc == 1)
   {
     printProjNameAndVersion();
     puts("Pass --help as an option for help in using this program.");
-  }
-
-  if (argc > 4)
-  {
-    assert("WIP need to handle argc > 3!" && NULL);
   }
 
   arena * a = arenaInit();
@@ -115,19 +112,23 @@ arena * parseCLI(int argc, char ** argv)
       arenaDestroy(a);
       exit(EXIT_SUCCESS);
     }
+    else if (!strcmp("--log_pointers", argv[i]))
+    {
+      a->log_pointers = true;
+    }
     else if (!strcmp("--regex_supported", argv[i]))
     {
       printRegexSupport();
       arenaDestroy(a);
       exit(EXIT_SUCCESS);
     }
-    else if (!strcmp("--ascii-table", argv[i]))
+    else if (!strcmp("--ascii_table", argv[i]))
     {
       printAsciiTable();
       arenaDestroy(a);
       exit(EXIT_SUCCESS);
     }
-    else if (!strcmp("--regex-test", argv[i]))
+    else if (!strcmp("--regex_test", argv[i]))
     {
       if (!a->word)
       {
@@ -149,10 +150,6 @@ arena * parseCLI(int argc, char ** argv)
     else if (!a->new_word)
     {
       a->new_word = argv[i];
-    }
-    else
-    {
-      assert("Unreachable! CLI.c" && NULL);
     }
   }
 

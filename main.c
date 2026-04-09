@@ -44,6 +44,12 @@
 
 #define ARRAY_ELEMENTS 10
 
+enum logPointersOptions{
+  NO_INCOMING_CHANGE = 0,
+  BEFORE_POINTERS_ADJUSTED,
+  AFTER_POINTERS_ADJUSTED
+};
+
 void regexDetectTest(char * string)
 {
   char * test_regex = string;
@@ -107,24 +113,95 @@ void findWords(arena * a)
       return;
     }
 
-    if (loc.word_start_pos != NOT_FOUND && loc.word_end_pos != NOT_FOUND)
-    {
-      if (!dynArrayAdd(&loc))
-      {
-        setErrorState(DYNAMIC_ARRAY_ADD_FAIL);
-        printErrorState("Error:");
-        return;
-      }
-    }
-    else 
+    if (loc.word_start_pos == NOT_FOUND || loc.word_end_pos == NOT_FOUND)
     {
       break;
     }
 
+    if (!dynArrayAdd(&loc))
+    {
+      setErrorState(DYNAMIC_ARRAY_ADD_FAIL);
+      printErrorState("Error:");
+      return;
+    }
+
     //  Move the file pointer past the end of the word last found
     fseek(a->fp, loc.word_end_pos + sizeof(char), SEEK_SET);
-
   } 
+}
+
+void printSeparator(FILE * fp, size_t num)
+{
+  #define LINES 6
+  char * diamond[LINES] = {
+    "  /\\  ",
+    " //\\\\ ", 
+    "//  \\\\", 
+    "\\\\  //",
+    " \\\\// ",
+    "  \\/  "
+  };
+
+  for (size_t i = 0; i < LINES; i++)
+  {
+    for (size_t j = 0; j < num; j++)
+    {
+      fputs(diamond[i], fp);
+    }
+    fprintf(fp, "\n");
+  }
+}
+
+void logPointers(arena * a, char * funcName, enum logPointersOptions option)
+{
+  FILE * fp = fopen("file_pos_pointers.txt", "a");
+  static bool pre_change_pointers_logged = false;
+  static bool first_time_running = true;
+
+  if (!fp)
+  {
+    printf("[%-20s] ERROR: Failed to open file_pos_pointers.txt to log pointers. Exiting", __func__);
+    exit(EXIT_FAILURE);
+  }
+
+  if (first_time_running)
+  {
+    printSeparator(fp, 6); 
+    first_time_running = false;
+  }
+
+  fprintf(fp, "--Logging pointers for %s\n", funcName);
+
+  if (option == BEFORE_POINTERS_ADJUSTED || option == AFTER_POINTERS_ADJUSTED)
+  {
+    fprintf(fp, "--This is %s pointers to words are adjusted in the file.\n", 
+            (option == BEFORE_POINTERS_ADJUSTED) ? "BEFORE" : "AFTER");
+  }
+
+  fprintf(fp, "--Regexp word searched against file:\n%s\n\n", a->word);
+
+  if (a->new_word)
+  {
+    fprintf(fp, "--New word to replace found words:\n%s\n\n", a->new_word);
+  }
+  
+  unsigned int limit = dynArrayGetArraySize();
+
+  for (unsigned int i = 0; i < limit; i++)
+  {
+    word_loc loc = *(word_loc *) dynArrayGetData(i);
+    fprintf(fp, "Ptr set %2u: Start %4ld End %4ld\n", 
+            i + 1, 
+            loc.word_start_pos, 
+            loc.word_end_pos);
+  }
+
+  if (option == BEFORE_POINTERS_ADJUSTED)
+  {
+    pre_change_pointers_logged = true;
+  }
+
+  fclose(fp);
 }
 
 void printFoundWords (arena * a)
@@ -160,19 +237,10 @@ void replaceWords (arena * a)
   word_loc * read;
 
   long word_size_diff;
-  long old_word_size = strlen(a->word);
+  long old_word_size;
   long new_word_size = strlen(a->new_word);
 
-  if (old_word_size < new_word_size)
-  {
-    word_size_diff = new_word_size - old_word_size;
-  }
-  else
-  {
-    word_size_diff = old_word_size - new_word_size;
-  }
-
-  if (dynArrayGetArraySize() > 0 && word_size_diff != 0)
+  if (dynArrayGetArraySize() > 0)
   {
 
     unsigned int array_size = dynArrayGetArraySize();
@@ -180,12 +248,21 @@ void replaceWords (arena * a)
     {
       read = dynArrayGetData(i);
 
+      old_word_size = read->word_end_pos - read->word_start_pos;
+
+      if (old_word_size == new_word_size)
+      {
+        continue;
+      }
+
+      word_size_diff = old_word_size - new_word_size;
+
       //  Instead of looping through every time you change the position of a word, you 
       //  can instead change all the positions of the words beforehand by determining the
       //  number of words that will be changed and changing the positions of the words 
       //  based on their position in the array.
-      read->word_start_pos += (word_size_diff * i) + i;
-      read->word_end_pos += (word_size_diff * i) + i;
+      read->word_start_pos = (read->word_start_pos - (word_size_diff * i)) - i;
+      read->word_end_pos = (read->word_end_pos - (word_size_diff * i)) - i;
     }
   }
 
@@ -228,14 +305,27 @@ int main (int argc, char ** argv)
   if (!a->new_word)
   {
     //  In the case where the user just wants to find the location of the words queried
+    if (a->log_pointers)
+    {
+      logPointers(a, "printFoundWords", NO_INCOMING_CHANGE);
+    }
 
     printFoundWords(a);
   }
   else 
   {
     //  query-replace
+    if (a->log_pointers)
+    {
+      logPointers(a, "replaceWords", BEFORE_POINTERS_ADJUSTED);
+    }
 
     replaceWords(a);
+
+    if (a->log_pointers)
+    {
+      logPointers(a, "replaceWords", AFTER_POINTERS_ADJUSTED);
+    }
   }
 
   dynArrayDestroy();

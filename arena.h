@@ -11,6 +11,9 @@ typedef struct {
   char * new_word;
   //  flag to run regex test
   bool regex_test;
+  //  flag to log file position indicators used 
+  //  to indicate where words are
+  bool log_pointers;
 } arena;
 
 arena * arenaInit(void);

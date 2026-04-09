@@ -1,2 +1,3 @@
 
-- ensure 
+- ensure that char pattern parsing works- DONE
+- fix query-replace

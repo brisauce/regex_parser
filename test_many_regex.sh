@@ -2,16 +2,21 @@
 
 . ./data.sh
 program_name=$STRING_PROCESSOR_PROGRAM_NAME 
+
 test_file_name=$STRING_PROCESSOR_FILE_NAME 
 
 text_file_contents=$STRING_PROCESSOR_TEXT_FILE_CONTENTS 
 
 test_word_replacement=$STRING_PROCESSOR_TEST_WORD_REPLACEMENT
+test_word_replacement='friends'
 
 red_text=$(tput setaf 1)
 green_text=$(tput setaf 2)
 reset_text_color=$(tput sgr0)
 proj_dir=$(pwd)
+
+script_name=$(basename "$0")
+
 alias cat="batcat"
 
 reset_file_contents() {
@@ -27,7 +32,7 @@ print_next_test() {
 run_program() {
   if [ "$#" -ne 1 ];
   then
-    echo "run_program - This function takes one argument."
+    echo "$script_name run_program - This function takes one argument."
     exit 1
   fi
 
@@ -37,10 +42,11 @@ run_program() {
   printf "${green_text}Against regex ${reset_text_color}\"$1\"\n"
 	cat "$test_file_name"
 
-	./"$program_name" "$1" "$test_file_name" 
+	./"$program_name" "$1" "$test_file_name" "$test_word_replacement"
 
 	echo "${green_text}Contents of $test_file_name after query-replace:${reset_text_color}"
 	cat "$test_file_name"
+  reset_file_contents
 }
 
 if [ ! -d build ]; then
