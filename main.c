@@ -22,7 +22,7 @@
  *
  *  Do query-replace with regexp against a specific word? DONE
  *
- *  Extend a regexp with grouping?
+ *  Extend a regexp with grouping? DONE
  *
  *  Extend query-replace with grouping?
  *

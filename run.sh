@@ -9,11 +9,11 @@ text_file_contents=$STRING_PROCESSOR_TEXT_FILE_CONTENTS
 
 test_word_replacement=$STRING_PROCESSOR_TEST_WORD_REPLACEMENT
 
-alias cat="batcat"
+alias cat="batcat --paging=never"
 green_text=$(tput setaf 2)
 reset_text_color=$(tput sgr0)
 run_program() {
-	./"$program_name" "$test_word" "$test_file_name" "$test_word_replacement"
+	./"$program_name" "$test_word" "$test_file_name" #"$test_word_replacement"
 }
 
 if [ ! -d build ]; then

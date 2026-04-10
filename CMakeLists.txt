@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22.1)
 
 project(string_processor 
-VERSION 0.4.7-1 
+VERSION 0.4.8 
 LANGUAGES C
 )
 

@@ -16,7 +16,7 @@ proj_dir=$(pwd)
 
 script_name=$(basename "$0")
 
-alias cat="batcat"
+alias cat="batcat --paging=never"
 
 reset_file_contents() {
 	printf "%s\n" "$text_file_contents" > "$test_file_name"
@@ -60,10 +60,6 @@ if [ ! -f "$program_name" ]; then
   exit 1
 fi
 reset_file_contents
-run_program "colour"
+run_program "Brut[t-v]?s"
 print_next_test
-run_program "colou?r"
-print_next_test
-run_program "col[m-p]ur"
-print_next_test
-run_program "col*our"
+run_program "Brut[t-v]*s"

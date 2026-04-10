@@ -126,10 +126,11 @@ void matchOneOrMoreChars(arena * a, char ** word_ptr, long * word_start_in_strin
     //  The "one or more chars" regex can be preceded by a char. class regex and grouped
     //  together to search for a series of characters.
 
-    //  Length of the regex includes the char. class regex and the '*' for "one or more chars"
-    //  The length of the char. class will be accounted for from validEscChar()
+    //  Length of the regex includes the char. class regex and the '*' for "one or more chars",
+    //  but "length" will only take the word_ptr to the terminating "]" in the char class regex.
+    //  To account for both of these, we must add 2 to move the pointer past the "]" and "*".
 
-    length ++;
+    length += 2;
 
     char A;
     char Z;
@@ -222,8 +223,7 @@ void matchZeroOrOneChar(arena * a, char ** word_ptr, long * word_start_in_string
     char Z;
     parseCharPattern(*word_ptr, &A, &Z);
 
-
-    if (cur_file_char != A && cur_file_char != Z)
+    if (!isInCharClass(cur_file_char, A, Z))
     {
       fseek(a->fp, -sizeof(char), SEEK_CUR);
     }
@@ -233,7 +233,11 @@ void matchZeroOrOneChar(arena * a, char ** word_ptr, long * word_start_in_string
       *word_start_in_string = ftell(a->fp);    
     }
 
-    *word_ptr += length + sizeof(char);
+    //  When we are at this point, the word pointer will be at the beginning of the char 
+    //  class regex. It has to be moved past the regex, the majority of which will be done by 
+    //  adding "length" to it. This will leave it at the terminating right bracket of the regex,
+    //  so to move it past that and the "?" we move it 2 spaces.
+    *word_ptr += length + (2 * sizeof(char));
   }
   else
   {
