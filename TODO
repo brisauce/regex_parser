@@ -1,3 +1,4 @@
 
 - ensure that char pattern parsing works- DONE
 - fix query-replace
+- run debugger checking every place the program stops to put the new word down

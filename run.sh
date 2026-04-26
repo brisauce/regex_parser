@@ -13,7 +13,7 @@ alias cat="batcat --paging=never"
 green_text=$(tput setaf 2)
 reset_text_color=$(tput sgr0)
 run_program() {
-	./"$program_name" "$test_word" "$test_file_name" #"$test_word_replacement"
+	./"$program_name" "$test_word" "$test_file_name" --log_pointers #"$test_word_replacement" 
 }
 
 if [ ! -d build ]; then

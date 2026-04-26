@@ -9,8 +9,9 @@
 #define STRING_PARSE_FAIL -1
 #define STRING_PARSE_SUCCESS 1 
 
-//  Indicator for findWordInStringRegex if it doesn't find the beginning or end of a word
+  //  Indicator for findWordInStringRegex if it doesn't find the beginning or end of a word
 #define NOT_FOUND LONG_MAX
+
 char * findWordInString(char * string, char * word);
 
 int findWordInStringRegex(arena * a, word_loc * loc);

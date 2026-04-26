@@ -2,11 +2,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <limits.h>
 
 #include "build/string_processorConfig.h"
 #include "word_loc_struct.h"
 #include "arena.h"
 #include "error_handling.h"
+#include "file_io.h"
 
 void printProjNameAndVersion (void)
 {
@@ -85,6 +87,11 @@ The non-printable characters are omitted.\n");
   }
 }
 
+unsigned int byteToGB(long bytes)
+{
+  return bytes / 1073741824u;
+}
+
 arena * parseCLI(int argc, char ** argv)
 {
   //  Parses the CLI for options and data.
@@ -104,6 +111,7 @@ arena * parseCLI(int argc, char ** argv)
   }
 
   FILE * temp_fp;
+  char * file_name = NULL;
   for (int i = 1; i < argc; i++)
   {
     if (!strcmp("--help", argv[i]) || !strcmp("--h", argv[i]) || !strcmp("-h", argv[i]))
@@ -146,6 +154,7 @@ arena * parseCLI(int argc, char ** argv)
     else if ( ( temp_fp = fopen(argv[i], "r+")) && !a->fp)
     {
       a->fp = temp_fp;
+      file_name = argv[i];
     }
     else if (!a->new_word)
     {
@@ -163,6 +172,16 @@ arena * parseCLI(int argc, char ** argv)
   if (!a->fp)
   {
     puts("No file was identified to parse. Exiting.");
+    arenaDestroy(a);
+    exit(EXIT_FAILURE);
+  }
+
+  //  "LONG_MAX" is used as a signifier for file position indicator variables when the 
+  //  start or end of a word hasn't been found
+  if (getFileEnd(a->fp) == LONG_MAX)
+  {
+    printf("File \"%s\" is too large.\n\
+The limit to the size of a file which can be parsed is %u GB", file_name, byteToGB(LONG_MAX - 1));
     arenaDestroy(a);
     exit(EXIT_FAILURE);
   }

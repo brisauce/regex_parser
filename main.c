@@ -30,6 +30,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
 #include "arena.h"
 #include "build/string_processorConfig.h"
@@ -49,6 +50,9 @@ enum logPointersOptions{
   BEFORE_POINTERS_ADJUSTED,
   AFTER_POINTERS_ADJUSTED
 };
+
+void printFoundWords (arena * a, FILE * stream);
+
 
 void regexDetectTest(char * string)
 {
@@ -101,7 +105,6 @@ void regexDetectTest(char * string)
 
 void findWords(arena * a)
 {
-
   word_loc loc;
 
   while (true)
@@ -118,12 +121,7 @@ void findWords(arena * a)
       break;
     }
 
-    if (!dynArrayAdd(&loc))
-    {
-      setErrorState(DYNAMIC_ARRAY_ADD_FAIL);
-      printErrorState("Error:");
-      return;
-    }
+    dynArrayAdd((void *) &a->locDynArray, &loc);
 
     //  Move the file pointer past the end of the word last found
     fseek(a->fp, loc.word_end_pos + sizeof(char), SEEK_SET);
@@ -146,6 +144,7 @@ void printSeparator(FILE * fp, size_t num)
   {
     for (size_t j = 0; j < num; j++)
     {
+      /*fprintf(fp, diamond[i]);*/
       fputs(diamond[i], fp);
     }
     fprintf(fp, "\n");
@@ -167,7 +166,6 @@ void logPointers(arena * a, char * funcName, enum logPointersOptions option)
   if (first_time_running)
   {
     printSeparator(fp, 6); 
-    first_time_running = false;
   }
 
   fprintf(fp, "--Logging pointers for %s\n", funcName);
@@ -184,16 +182,40 @@ void logPointers(arena * a, char * funcName, enum logPointersOptions option)
   {
     fprintf(fp, "--New word to replace found words:\n%s\n\n", a->new_word);
   }
-  
-  unsigned int limit = dynArrayGetArraySize();
 
+  if (first_time_running)
+  {
+    fputs("Words found:\n", fp);
+    printFoundWords(a, fp);
+  }
+  
+  unsigned int limit = dynArrayGetArraySize(a->locDynArray);
+  bool passed_first_loc = false;
+  word_loc prev_loc;
   for (unsigned int i = 0; i < limit; i++)
   {
-    word_loc loc = *(word_loc *) dynArrayGetData(i);
+    word_loc loc = a->locDynArray[i];
+    if (passed_first_loc)
+    {
+      fprintf(fp, "-> Distance: %ld\n", loc.word_start_pos - prev_loc.word_end_pos);
+    }
     fprintf(fp, "Ptr set %2u: Start %4ld End %4ld\n", 
             i + 1, 
             loc.word_start_pos, 
             loc.word_end_pos);
+
+    if (!passed_first_loc)
+    {
+      passed_first_loc = true;
+    }
+    prev_loc = loc;
+  }
+
+  fputc('\n', fp);
+
+  if (first_time_running)
+  {
+    first_time_running = false;
   }
 
   if (option == BEFORE_POINTERS_ADJUSTED)
@@ -204,49 +226,50 @@ void logPointers(arena * a, char * funcName, enum logPointersOptions option)
   fclose(fp);
 }
 
-void printFoundWords (arena * a)
+void printFoundWords (arena * a, FILE * stream)
 {
-  word_loc * read;
-
-  while ( (read = (word_loc *) dynArrayRead(NULL)) )
+  for (size_t i = 0; i < dynArrayGetArraySize(a->locDynArray); i++ )
   {
+    word_loc * read = &a->locDynArray[i];
     fseek(a->fp, read->word_start_pos, SEEK_SET);
 
     //  If the position pointer is one beyond the index where the word ends, the word 
     //  has been read out.
-    putchar('\"');
-    while (ftell(a->fp) != read->word_end_pos + sizeof(char))
+    fprintf(stream, "#%zu", i + 1);
+    fputs(" \"" , stream);
+    while (ftell(a->fp) != read->word_end_pos + sizeof(char) && !feof(a->fp))
     {
       char c = fgetc(a->fp);
 
       if (c == EOF)
       {
-        fputs("EOF", stdout);
+        fputs("[EOF]", stream);
       }
       else
       {
-        putchar(c);
+        fputc(c, stream);
       }
     }
-    puts("\"\n");
+    fputs("\"\n\n", stream);
   }
 }
 
 void replaceWords (arena * a)
 {
-  word_loc * read;
+  word_loc * read = NULL;
+  word_loc * next;
 
   long word_size_diff;
   long old_word_size;
   long new_word_size = strlen(a->new_word);
+  unsigned int array_size = dynArrayGetArraySize(a->locDynArray);
 
-  if (dynArrayGetArraySize() > 0)
+  if (array_size > 0)
   {
-
-    unsigned int array_size = dynArrayGetArraySize();
+    /*goto replace_shift;*/
     for (unsigned int i = 1; i < array_size; i++) 
     {
-      read = dynArrayGetData(i);
+      read = &a->locDynArray[i];
 
       old_word_size = read->word_end_pos - read->word_start_pos;
 
@@ -264,18 +287,45 @@ void replaceWords (arena * a)
       read->word_start_pos = (read->word_start_pos - (word_size_diff * i)) - i;
       read->word_end_pos = (read->word_end_pos - (word_size_diff * i)) - i;
     }
+
+    goto replace;
+replace_shift:
+    for (size_t i = 0; i < dynArrayGetArraySize(a->locDynArray); i++)
+    {
+      read = &a->locDynArray[i];
+      replaceWordinFile(a, *read);
+
+      //  push all the other words forward by the difference between the old and new word
+      static unsigned int index = 1;
+
+      for (unsigned int i = index; index < array_size; i++)
+      {
+        read = &a->locDynArray[i];
+        old_word_size = read->word_end_pos - read->word_start_pos;
+        if (old_word_size == new_word_size)
+        {
+          continue;
+        }
+        word_size_diff = old_word_size - new_word_size;
+        read->word_start_pos -= word_size_diff;
+        read->word_end_pos -= word_size_diff;
+      }
+
+      index ++;
+    }
+    return;
   }
 
-  while ( (read = (word_loc *) dynArrayRead(NULL)) )
+replace:
+  for (size_t i = 0; i < dynArrayGetArraySize(a->locDynArray); i++)
   {
+    read = &a->locDynArray[i];
     replaceWordinFile(a, *read);
   }
-
 }
 
 int main (int argc, char ** argv)
 {
-
   arena * a = parseCLI(argc, argv);
 
   if (a->regex_test)
@@ -287,7 +337,9 @@ int main (int argc, char ** argv)
 
   //  Dynamic array to hold pointers to the first and last character pointers of every word 
 
-  if (!dynArrayInit(ARRAY_ELEMENTS, sizeof(word_loc)))
+  a->locDynArray = dynArrayInit(ARRAY_ELEMENTS, sizeof(word_loc)); 
+
+  if (!a->locDynArray)
   {
     printf("Failed to initialize dynamic array! Exiting\n");
     arenaDestroy(a);
@@ -310,7 +362,7 @@ int main (int argc, char ** argv)
       logPointers(a, "printFoundWords", NO_INCOMING_CHANGE);
     }
 
-    printFoundWords(a);
+    printFoundWords(a, stdout);
   }
   else 
   {
@@ -328,6 +380,6 @@ int main (int argc, char ** argv)
     }
   }
 
-  dynArrayDestroy();
+  dynArrayDestroy(a->locDynArray);
   arenaDestroy(a);
 }

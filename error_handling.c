@@ -8,7 +8,7 @@ enum error_state error_state = NO_ERROR_STATE;
 
 //  This array should have a number of elements equal to the last defined enum for enum error_state,
 //  plus one, because enum error state starts counting from zero.
-char * error_msg[FAILED_FILE_WRITE + 1] = {
+char * error_msg[ERROR_STATES] = {
   "No error state.",
   "Invalid escape character.",
   "Expected closing brace in character class",
@@ -17,7 +17,6 @@ char * error_msg[FAILED_FILE_WRITE + 1] = {
   "Missing argument in \"Match one or more chars\" regex.",
   "Missing argument in \"Match zero or one char\" regex.",
 
-  "Failed to add data to dynamic array.",
 
   "Failed to allocate memory.",
   "Failed to open file.",

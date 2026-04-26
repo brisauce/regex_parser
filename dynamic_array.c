@@ -1,135 +1,72 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <assert.h>
+#include <string.h>
 
 #include "dynamic_array.h"
 
-/*  
- *  This implementation of a dynamic array works by tracking both a read and write pointer 
- *  which are used to index an array which can be dynamically resized.
- *
- *  The write pointer will always point to the next unoccupied element in an array and will 
- *  write to it when prompted by dynArrayAdd. 
- *
- *  The read pointer will start at the first element in the list and increment until it 
- *  reaches the write pointer, in which case it will return nothing.
- *
- */
 
-size_t unit_size = 0;
+typedef struct {
 
-//  The next element in the array to write data to. The index this points to will never contain 
-//  data.
-unsigned int w_pointer = 0;
+  //  size in bytes of the individual elements of the array.
+  size_t unit_size;
 
-//  The index in the array which will return data when dynArrayRead is called. This will never 
-//  be greater than w_pointer, and will always point to valid data.
-unsigned int r_pointer = 0;
-size_t arr_size = 0;
-void * array = NULL;
+  //  The next element in the array to write data to. 
+  size_t w_pointer;
 
-bool dynArrayInit (unsigned int num_items, size_t item_size)
-{
-  unit_size = item_size;
-  arr_size = item_size;
-  array = calloc(num_items, item_size);
-
-  return array != NULL;
-}
-
-bool dynArrayAdd (void * item)
-{
-  if (w_pointer == arr_size)
-  {
-    array = realloc(array, arr_size + arr_size);
-    if (!array)
-    {
-      return false;
-    }
-  }
-
-  //  This assumes that the size of a unit is made of one or more 8-bit words which are 
-  //  boundary aligned
-  void * current_element = array + (w_pointer * unit_size);
-
-  for (size_t i = 0; i < unit_size; i++)
-  {
-    ((uint8_t *) current_element)[i] = ((uint8_t *) item)[i];
-  }
-
-  w_pointer ++;
-
-  return true;
-}
-
-void * dynArrayRead (size_t * element_size)
-{
-  //  Returns a pointer to the first byte of the item the current read pointer points to.
-  //  Will return by reference the size of the item in bytes if a pointer to a size_t 
-  //  object is passed to the function, otherwise NULL should be passed.
+  //  the total number of indices in the array which can be filled before the 
+  //  dynamic array needs to be resized
+  size_t capacity;
   
+} dynArrayHeader;
 
-  if (r_pointer >= w_pointer)
-  {
-    if (element_size)
-    {
-      *element_size = 0;
-    }
-    return NULL;
-  }
-
-  void * retval = array + (r_pointer * unit_size);
-  r_pointer ++;
+void * dynArrayInit(size_t num_items, size_t item_size)
+{
+  void * retval = calloc(1, sizeof(dynArrayHeader) + (num_items * item_size));
   
-  if (element_size)
+  dynArrayHeader * header = retval;
+
+  header->capacity = num_items;
+  header->unit_size = item_size;
+  header->w_pointer = 0;
+
+  return (dynArrayHeader *) retval + 1;
+}
+
+void dynArrayAdd(void ** array_ptr, void * item)
+{
+  //  Move the pointer to where the header data is, i.e. one header-sized amount of data before
+  //  the array
+  void * array = *array_ptr;
+  dynArrayHeader * header = (dynArrayHeader *) array - 1;
+
+  if (header->w_pointer == header->capacity)
   {
-    *element_size = unit_size;
-  }
+    header->capacity *= 2;
+    void * temp = realloc(header, (header->capacity * header->unit_size) + 
+                          sizeof(dynArrayHeader)); 
+    assert(temp);
+    header = temp;
+    *array_ptr = (dynArrayHeader *) header + 1;
+    array = (dynArrayHeader *) header + 1;
+  } 
 
-  return retval;
+  void * current_element = array + (header->w_pointer * header->unit_size);
+
+  memcpy(current_element, item, header->unit_size);
+  header->w_pointer ++;
 }
 
-void dynArrayDestroy(void)
+void dynArrayDestroy (void * array)
 {
-  free(array);
+  free((dynArrayHeader *) array - 1);
 }
 
-unsigned int dynArrayGetIndex (void)
+size_t dynArrayGetArraySize(void * array)
 {
-  //  Returns the current index of the auto-iterating dynamic array.
-  return r_pointer;
+  dynArrayHeader * header = (dynArrayHeader *) array - 1;
+  return header->w_pointer;
 }
 
-unsigned int dynArrayGetArraySize (void)
-{
-  //  Returns the size of the array. Indexing this element in the array will not return data.
-  return w_pointer;
-}
-
-void * dynArrayGetData (unsigned int index)
-{
-  //  An index into the dynamic array is passed. If the index is a valid readable index,
-  //  a pointer to the data is returned. If not, NULL is returned.
-
-  if (index >= w_pointer)
-  {
-    return NULL;
-  }
-
-  return array + (index * unit_size);
-}
-
-unsigned int dynArrayMoveToIndex(unsigned int index)
-{
-  //  Moves the read pointer to some element containing data in the array.
-  //  If this element doesn't contain data or is otherwise inaccessable, return an error state.
-  
-  if (index >= w_pointer)
-  {
-    return DAMOVE_FAIL; 
-  }
-
-  r_pointer = index;
-
-  return DAMOVE_SUCCEED;
-}

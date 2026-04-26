@@ -20,15 +20,14 @@ enum error_state {
   MATCH_ANY_NUM_MISSING_ARG,
   MATCH_ONE_CHAR_MISSING_ARG,
 
-  // dynamic array
-  DYNAMIC_ARRAY_ADD_FAIL,
 
   //  system errors
   FAILED_MEMORY_ALLOC,
   FAILED_FILE_OPEN,
-  FAILED_FILE_WRITE
-  //  whatever the last enum in this list is should be used as the array size for 
-  //  the error messages in error_handling.c
+  FAILED_FILE_WRITE,
+
+  //  DO NOT PLACE ANY MORE ENUMERATIONS BEYOND THIS
+  ERROR_STATES
 };
 
 void setErrorState(enum error_state state);

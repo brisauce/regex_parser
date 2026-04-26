@@ -19,7 +19,7 @@ script_name=$(basename "$0")
 alias cat="batcat --paging=never"
 
 reset_file_contents() {
-	printf "%s\n" "$text_file_contents" > "$test_file_name"
+  ./reset_file_contents.sh
 }
 
 print_next_test() {
@@ -41,7 +41,7 @@ run_program() {
   printf "${green_text}Against regex ${reset_text_color}\"$1\"\n"
 	cat "$test_file_name"
 
-	./"$program_name" "$1" "$test_file_name" "$test_word_replacement"
+	./"$program_name" "$1" "$test_file_name" --log_pointers "$test_word_replacement"
 
 	echo "${green_text}Contents of $test_file_name after query-replace:${reset_text_color}"
 	cat "$test_file_name"
@@ -60,6 +60,5 @@ if [ ! -f "$program_name" ]; then
   exit 1
 fi
 reset_file_contents
-run_program "Brut[t-v]?s"
-print_next_test
-run_program "Brut[t-v]*s"
+
+run_program "B[r-v]*"

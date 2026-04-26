@@ -2,6 +2,7 @@
 #define ARENA_H
 #include <stdio.h>
 #include <stdbool.h>
+#include "word_loc_struct.h"
 
 typedef struct {
   FILE * fp;
@@ -14,6 +15,9 @@ typedef struct {
   //  flag to log file position indicators used 
   //  to indicate where words are
   bool log_pointers;
+
+  //  dynamic array used to store data for 
+  word_loc * locDynArray;
 } arena;
 
 arena * arenaInit(void);
