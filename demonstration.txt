@@ -1,0 +1,13 @@
+Regexp
+
+Search: sam
+
+regexp: same?
+
+"sam "
+
+color
+colour
+colou?r
+
+

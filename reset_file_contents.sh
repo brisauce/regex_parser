@@ -27,3 +27,5 @@ fi
 
 printf "%s\n" "$text_file_contents" > "$test_file_name"
 
+echo "$0: file contents of $test_file_name reset successfully."
+

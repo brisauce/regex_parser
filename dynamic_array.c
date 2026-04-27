@@ -59,9 +59,11 @@ void dynArrayAdd(void ** array_ptr, void * item)
   header->w_pointer ++;
 }
 
-void dynArrayDestroy (void * array)
+void dynArrayDestroy (void ** array)
 {
-  free((dynArrayHeader *) array - 1);
+  void * a = *array;
+  free((dynArrayHeader *) a - 1);
+  *array = NULL;
 }
 
 size_t dynArrayGetArraySize(void * array)

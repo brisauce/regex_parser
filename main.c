@@ -254,74 +254,76 @@ void printFoundWords (arena * a, FILE * stream)
   }
 }
 
+void checkPointerSpacing(arena * a)
+{
+  size_t array_size = dynArrayGetArraySize(a->locDynArray);
+  FILE * fp = fopen("file_pos_pointers_spacing.txt", "w");
+  assert(fp);
+
+
+}
+
 void replaceWords (arena * a)
 {
-  word_loc * read = NULL;
-  word_loc * next;
-
-  long word_size_diff;
-  long old_word_size;
-  long new_word_size = strlen(a->new_word);
   unsigned int array_size = dynArrayGetArraySize(a->locDynArray);
+  char * temp_file_name = "temp"; 
 
-  if (array_size > 0)
+  if (!array_size)
   {
-    /*goto replace_shift;*/
-    for (unsigned int i = 1; i < array_size; i++) 
-    {
-      read = &a->locDynArray[i];
-
-      old_word_size = read->word_end_pos - read->word_start_pos;
-
-      if (old_word_size == new_word_size)
-      {
-        continue;
-      }
-
-      word_size_diff = old_word_size - new_word_size;
-
-      //  Instead of looping through every time you change the position of a word, you 
-      //  can instead change all the positions of the words beforehand by determining the
-      //  number of words that will be changed and changing the positions of the words 
-      //  based on their position in the array.
-      read->word_start_pos = (read->word_start_pos - (word_size_diff * i)) - i;
-      read->word_end_pos = (read->word_end_pos - (word_size_diff * i)) - i;
-    }
-
-    goto replace;
-replace_shift:
-    for (size_t i = 0; i < dynArrayGetArraySize(a->locDynArray); i++)
-    {
-      read = &a->locDynArray[i];
-      replaceWordinFile(a, *read);
-
-      //  push all the other words forward by the difference between the old and new word
-      static unsigned int index = 1;
-
-      for (unsigned int i = index; index < array_size; i++)
-      {
-        read = &a->locDynArray[i];
-        old_word_size = read->word_end_pos - read->word_start_pos;
-        if (old_word_size == new_word_size)
-        {
-          continue;
-        }
-        word_size_diff = old_word_size - new_word_size;
-        read->word_start_pos -= word_size_diff;
-        read->word_end_pos -= word_size_diff;
-      }
-
-      index ++;
-    }
     return;
   }
 
-replace:
-  for (size_t i = 0; i < dynArrayGetArraySize(a->locDynArray); i++)
+  //  Every word has a start and end pointer 
+  //
+  //  Every word has to be pushed forward by the difference in the lengths of each previous 
+  //  word and the word that is replacing it
+  //
+  //  we could do this by:
+  //  - starting from the first word to be replaced, overwrite the word from its start 
+  //    pointer. determine the difference between the end pointer and where the new 
+  //    end of the word is, and adjust every following start and end value by that amount
+
+  for (size_t i = 0; i < array_size; i++)
   {
-    read = &a->locDynArray[i];
-    replaceWordinFile(a, *read);
+    //  replace word
+    //
+    //  determine distance between new pointer and old pointer
+
+    fseek(a->fp, a->locDynArray[i].word_end_pos + sizeof(char), SEEK_SET);
+
+    FILE * tempfp = fopen(temp_file_name, "w+"); 
+
+    if (copyFile(a->fp, ftell(a->fp), tempfp, 0) == COPYFILE_ERROR)
+    {
+      printf("[%-20s] ERROR within copyfile. Exiting\n", __func__);
+      arenaDestroy(a);
+      exit(EXIT_FAILURE);
+    }
+
+    fseek(a->fp, a->locDynArray[i].word_start_pos, SEEK_SET);
+
+    fputs(a->new_word, a->fp);
+
+    long word_size_diff = a->locDynArray[i].word_end_pos - (ftell(a->fp) - sizeof(char));
+
+    if (word_size_diff)
+    {
+      for (size_t j = i + 1; j < array_size; j++)
+      {
+        //  adjust all following pointer based on difference between old and 
+        //  new end pointers 
+        a->locDynArray[j].word_start_pos -= word_size_diff;
+        a->locDynArray[j].word_end_pos -= word_size_diff;
+      }
+    }
+    //  copy the temp file contents back into place in the old file
+
+    copyFile(tempfp, 0, a->fp, ftell(a->fp));
+    fclose(tempfp);
+    fflush(a->fp);
   }
+
+  remove(temp_file_name);
 }
 
 int main (int argc, char ** argv)
@@ -380,6 +382,6 @@ int main (int argc, char ** argv)
     }
   }
 
-  dynArrayDestroy(a->locDynArray);
+  dynArrayDestroy((void **)&a->locDynArray);
   arenaDestroy(a);
 }

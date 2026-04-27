@@ -7,6 +7,11 @@
 #define REPLACE_WORD_ERROR -1
 #define REPLACE_WORD_SUCCESS 1
 
+enum copyFileStatus {
+  COPYFILE_SUCCESS,
+  COPYFILE_ERROR
+};
+
 int replaceWordinFile(arena * a, word_loc loc);
 enum copyFileStatus copyFile(FILE * src, long src_ptr, FILE * dest, long dest_ptr);
 
