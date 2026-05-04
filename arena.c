@@ -3,12 +3,12 @@
 #include "arena.h"
 #include "dynamic_array.h"
 
-arena * arenaInit(void)
-{
-  arena * retval = calloc(1, sizeof(arena));
-
-  return retval;
-}
+/*arena * arenaInit()*/
+/*{*/
+/*  arena * retval = calloc(1, sizeof(arena));*/
+/**/
+/*  return retval;*/
+/*}*/
 
 void arenaDestroy(arena * s)
 {
@@ -22,5 +22,4 @@ void arenaDestroy(arena * s)
     dynArrayDestroy((void **) &s->locDynArray);
   }
 
-  free(s);
 }

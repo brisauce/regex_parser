@@ -19,13 +19,25 @@ void printProjNameAndVersion (void)
          string_processor_VERSION_PATCH);
 }
 
+void printOptions()
+{
+  puts("\t--q --quiet             Suppresses all non-error terminal output.\n");
+  puts("\t--regex_supported       Display regex patterns supported by the program.\n");
+  puts("\t(word) --regex_test     Check the word passed to see if the program can identify the regex");
+  puts("\t                        within it. If grouping is present, the program will display the\n");
+  puts("\t                        outermost regex. Ex: [a-z]* would return \"one or more chars\".");
+}
+
 void printHelp(void)
 {
   printProjNameAndVersion();
   printf("\
 Example usage:\n\
-%s (options) \"word or phrase to search for\" \"example_file_name.whatever\" \"word or phrase to replace searched word\"\n\
-\n\
+%s (options) \"word or phrase to search for\" \"example_file_name.whatever\" \"word or phrase to replace searched word\"\n", PROJECT_NAME);
+
+  printOptions();
+
+printf("\n\
 This program takes as argument two string arguments surrounded by double quotes.\n\
 \tThe first argument after any options must be the word or phrase to search for.\n\
 This word or phrase can be any length and may include regular expressions.\n\
@@ -37,8 +49,7 @@ The text must be in ASCII one-byte-per-character format or undefined behavior wi
 \n\
 \tThe final argument to pass is the word or phrase to replace the queried word with.\n\
 This word will replace every instance of the word in the query argument in the text file,\n\
-And should be in double quotes if there are spaces involved.\n",
-         PROJECT_NAME);
+And should be in double quotes if there are spaces involved.\n");
 }
 
 void printRegexSupport(void)
@@ -87,21 +98,22 @@ The non-printable characters are omitted.\n");
   }
 }
 
-unsigned int byteToGB(long bytes)
+
+unsigned long byteToGB(long bytes)
 {
   return bytes / 1073741824u;
 }
 
-arena * parseCLI(int argc, char ** argv)
+
+void parseCLI(int argc, char ** argv, arena * a)
 {
   //  Parses the CLI for options and data.
   if (argc == 1)
   {
     printProjNameAndVersion();
     puts("Pass --help as an option for help in using this program.");
+    exit(EXIT_FAILURE);
   }
-
-  arena * a = arenaInit();
 
   if (!a)
   {
@@ -111,7 +123,6 @@ arena * parseCLI(int argc, char ** argv)
   }
 
   FILE * temp_fp;
-  char * file_name = NULL;
   for (int i = 1; i < argc; i++)
   {
     if (!strcmp("--help", argv[i]) || !strcmp("--h", argv[i]) || !strcmp("-h", argv[i]))
@@ -136,6 +147,10 @@ arena * parseCLI(int argc, char ** argv)
       arenaDestroy(a);
       exit(EXIT_SUCCESS);
     }
+    else if (!strcmp("--q", argv[i]) || !strcmp("--quiet", argv[i]))
+    {
+      a->quiet = true;
+    }
     else if (!strcmp("--regex_test", argv[i]))
     {
       if (!a->word)
@@ -145,7 +160,7 @@ arena * parseCLI(int argc, char ** argv)
         exit(EXIT_FAILURE);
       }
       a->regex_test = true;
-      goto Return;
+      return;
     }
     else if (!a->word) 
     {
@@ -154,7 +169,7 @@ arena * parseCLI(int argc, char ** argv)
     else if ( ( temp_fp = fopen(argv[i], "r+")) && !a->fp)
     {
       a->fp = temp_fp;
-      file_name = argv[i];
+      a->file_name = argv[i];
     }
     else if (!a->new_word)
     {
@@ -181,13 +196,11 @@ arena * parseCLI(int argc, char ** argv)
   if (getFileEnd(a->fp) == LONG_MAX)
   {
     printf("File \"%s\" is too large.\n\
-The limit to the size of a file which can be parsed is %u GB", file_name, byteToGB(LONG_MAX - 1));
+The limit to the size of a file which can be parsed is %lu GB", a->file_name, byteToGB(LONG_MAX - 1));
     arenaDestroy(a);
     exit(EXIT_FAILURE);
   }
 
-  Return:
-  return a;
 }
 
 

@@ -24,7 +24,7 @@
  *
  *  Extend a regexp with grouping? DONE
  *
- *  Extend query-replace with grouping?
+ *  Extend query-replace with grouping? DONE
  *
  */
 
@@ -153,7 +153,8 @@ void printSeparator(FILE * fp, size_t num)
 
 void logPointers(arena * a, char * funcName, enum logPointersOptions option)
 {
-  FILE * fp = fopen("file_pos_pointers.txt", "a");
+  char * filename = "file_pos_pointers.txt";
+  FILE * fp = fopen(filename, "a");
   static bool pre_change_pointers_logged = false;
   static bool first_time_running = true;
 
@@ -199,7 +200,7 @@ void logPointers(arena * a, char * funcName, enum logPointersOptions option)
     {
       fprintf(fp, "-> Distance: %ld\n", loc.word_start_pos - prev_loc.word_end_pos);
     }
-    fprintf(fp, "Ptr set %2u: Start %4ld End %4ld\n", 
+    fprintf(fp, "Ptr set %02u: Start %4ld End %4ld\n", 
             i + 1, 
             loc.word_start_pos, 
             loc.word_end_pos);
@@ -223,12 +224,18 @@ void logPointers(arena * a, char * funcName, enum logPointersOptions option)
     pre_change_pointers_logged = true;
   }
 
+  if ((option == AFTER_POINTERS_ADJUSTED || option == NO_INCOMING_CHANGE) && !a->quiet )
+  {
+    printf("File position pointers logged to %s\n", filename);
+  }
+
   fclose(fp);
 }
 
 void printFoundWords (arena * a, FILE * stream)
 {
-  for (size_t i = 0; i < dynArrayGetArraySize(a->locDynArray); i++ )
+  size_t array_size = dynArrayGetArraySize(a->locDynArray);
+  for (size_t i = 0; i < array_size; i++)
   {
     word_loc * read = &a->locDynArray[i];
     fseek(a->fp, read->word_start_pos, SEEK_SET);
@@ -254,34 +261,16 @@ void printFoundWords (arena * a, FILE * stream)
   }
 }
 
-void checkPointerSpacing(arena * a)
-{
-  size_t array_size = dynArrayGetArraySize(a->locDynArray);
-  FILE * fp = fopen("file_pos_pointers_spacing.txt", "w");
-  assert(fp);
-
-
-}
 
 void replaceWords (arena * a)
 {
   unsigned int array_size = dynArrayGetArraySize(a->locDynArray);
-  char * temp_file_name = "temp"; 
+  char * temp_file_name = "temp.txt"; 
 
   if (!array_size)
   {
     return;
   }
-
-  //  Every word has a start and end pointer 
-  //
-  //  Every word has to be pushed forward by the difference in the lengths of each previous 
-  //  word and the word that is replacing it
-  //
-  //  we could do this by:
-  //  - starting from the first word to be replaced, overwrite the word from its start 
-  //    pointer. determine the difference between the end pointer and where the new 
-  //    end of the word is, and adjust every following start and end value by that amount
 
   for (size_t i = 0; i < array_size; i++)
   {
@@ -328,60 +317,86 @@ void replaceWords (arena * a)
 
 int main (int argc, char ** argv)
 {
-  arena * a = parseCLI(argc, argv);
+  arena a = {0};
+  parseCLI(argc, argv, &a);
 
-  if (a->regex_test)
+  if (a.regex_test)
   {
-    regexDetectTest(a->word);
-    arenaDestroy(a);
+    regexDetectTest(a.word);
+    arenaDestroy(&a);
     exit(EXIT_SUCCESS);
   }
 
   //  Dynamic array to hold pointers to the first and last character pointers of every word 
 
-  a->locDynArray = dynArrayInit(ARRAY_ELEMENTS, sizeof(word_loc)); 
+  a.locDynArray = dynArrayInit(ARRAY_ELEMENTS, sizeof(word_loc)); 
 
-  if (!a->locDynArray)
+  if (!a.locDynArray)
   {
     printf("Failed to initialize dynamic array! Exiting\n");
-    arenaDestroy(a);
+    arenaDestroy(&a);
     return EXIT_FAILURE;
   }
 
-  findWords(a);
+  findWords(&a);
 
   if (getCurrentErrorState() != NO_ERROR_STATE)
   {
+    printErrorState("Error in findWords:");
     return EXIT_FAILURE;
   }
 
+  size_t array_size = dynArrayGetArraySize(a.locDynArray);
 
-  if (!a->new_word)
+  if (!a.quiet)
+  {
+    if (array_size)
+    {
+      printf("Found %zu instances of queried pattern in file %s.\n", array_size, a.file_name);
+    }
+    else 
+    {
+      printf("Queried pattern was not found if file %s.", a.file_name);
+    }
+  }
+
+  if (!array_size)
+  {
+    arenaDestroy(&a);
+    return EXIT_SUCCESS;
+  }
+
+  if (!a.new_word)
   {
     //  In the case where the user just wants to find the location of the words queried
-    if (a->log_pointers)
+    if (a.log_pointers)
     {
-      logPointers(a, "printFoundWords", NO_INCOMING_CHANGE);
+      logPointers(&a, "printFoundWords", NO_INCOMING_CHANGE);
     }
 
-    printFoundWords(a, stdout);
+    printFoundWords(&a, stdout);
   }
   else 
   {
     //  query-replace
-    if (a->log_pointers)
+    if (a.log_pointers)
     {
-      logPointers(a, "replaceWords", BEFORE_POINTERS_ADJUSTED);
+      logPointers(&a, "replaceWords", BEFORE_POINTERS_ADJUSTED);
     }
 
-    replaceWords(a);
+    replaceWords(&a);
 
-    if (a->log_pointers)
+    if (!a.quiet)
     {
-      logPointers(a, "replaceWords", AFTER_POINTERS_ADJUSTED);
+      printf("Replaced all instances of queried pattern in file %s.\n", a.file_name);
+    }
+
+    if (a.log_pointers)
+    {
+      logPointers(&a, "replaceWords", AFTER_POINTERS_ADJUSTED);
     }
   }
 
-  dynArrayDestroy((void **)&a->locDynArray);
-  arenaDestroy(a);
+  dynArrayDestroy((void **)&a.locDynArray);
+  arenaDestroy(&a);
 }

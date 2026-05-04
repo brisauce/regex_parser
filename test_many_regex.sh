@@ -5,21 +5,28 @@ program_name=$STRING_PROCESSOR_PROGRAM_NAME
 
 test_file_name=$STRING_PROCESSOR_FILE_NAME 
 
-text_file_contents=$STRING_PROCESSOR_TEXT_FILE_CONTENTS 
+# text_file_contents=$STRING_PROCESSOR_TEXT_FILE_CONTENTS 
 
 test_word_replacement=$STRING_PROCESSOR_TEST_WORD_REPLACEMENT
 
 red_text=$(tput setaf 1)
 green_text=$(tput setaf 2)
 reset_text_color=$(tput sgr0)
-proj_dir=$(pwd)
+# proj_dir=$(pwd)
 
 script_name=$(basename "$0")
 
 alias cat="batcat --paging=never"
 
 reset_file_contents() {
-  ./reset_file_contents.sh
+  if [ -f reset_file_contents.sh ]; then
+    ./reset_file_contents.sh
+  else
+    (
+      cd .. 
+      ./reset_file_contents.sh
+    )
+  fi
 }
 
 print_next_test() {

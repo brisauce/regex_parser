@@ -5,6 +5,6 @@
 
 #include "arena.h"
 
-arena * parseCLI(int argc, char ** argv) __attribute_warn_unused_result__;
+void parseCLI(int argc, char ** argv, arena * a);
 
 #endif
